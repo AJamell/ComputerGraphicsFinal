@@ -4,7 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
     entry: {
-        'final-project': './src/final-project.js',
+        'final-project': './src/helix-jump.js',
     },
     output: {
         filename: '[name].js',
@@ -36,7 +36,7 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: './src/index.html',
             filename: 'index.html',
-            chunks: ['flight-sim'],
+            chunks: ['final-project'],
         }),
     ],
     devServer: {
