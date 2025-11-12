@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { debugScene } from './debug-scene.js';
 
-const DUBUG_MODE = false;
+const DUBUG_MODE = true;
 
 const input = {};
 window.addEventListener('keydown', e => {input[e.key] = true;});
@@ -40,5 +40,4 @@ function regularGame() {
     }
     animate();
 }
-
 

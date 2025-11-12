@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import ballModel from "./models/bouncing_ball.glb";
 
 const SHOW_AXES_HELPER = true;
 const SHOW_PLATFORMS = true;
 const PLATFORM_SIZE = { radius: 10, height: 1 };
+let clock = new THREE.Clock();
+let MIXER;
 
 function debugScene() {
     const { scene, camera, renderer } = basicSetup();
@@ -28,10 +32,12 @@ function debugScene() {
 
     function animate() {
         requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        if (MIXER) MIXER.update(delta);
         renderer.render(scene, camera);
         controls.update();
-    }
 
+    }
     animate();
 }
 
@@ -43,20 +49,42 @@ function createPlatform(radius, height, color) {
     return cylinder;
 }
 
+function getBall(scene) {
+    const glbLoader = new GLTFLoader();
+    glbLoader.load(ballModel, (gltf) => {
+        const model = gltf.scene;
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.material.color.set(0xff0000);
+                child.material.metalness = 0.3;
+                child.material.roughness = 0.7;
+            }
+        });
+        if (gltf.animations && gltf.animations.length > 0) {
+            MIXER = new THREE.AnimationMixer(model);
+            gltf.animations.forEach((clip) => {
+                const action = MIXER.clipAction(clip);
+                action.play(); //for scene clips its Sphere|SphereAction
+            });
+        }
+        scene.add(model);
+    });
+}
+
 function basicSetup() {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
+    scene.background = new THREE.Color('red');
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
-    return { scene, camera, renderer };
+    getBall(scene);
+    return { scene, camera, renderer};
 }
 
 function setupLights(scene) {
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
-
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(1, 1, 1).normalize();
     scene.add(directionalLight);
