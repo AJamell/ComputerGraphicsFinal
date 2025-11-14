@@ -11,8 +11,49 @@
             overflow: hidden;
             font-family: Arial, sans-serif;
         }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
+        }
+        #levelButtons {
+            display: flex;
+            gap: 8px;
+            margin-top: 3px;
+            margin-bottom: 3px;
+        }
+        #levelButtons button,
+        #reset {
+            margin-top: 3px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #levelButtons button:hover,
+        #reset:hover { background: #45a049; }
+        #levelButtons button:active,
+        #reset:active { background: #3e8e41; }
     </style>
 </head>
 <body>
+<div id="controls">
+    <strong>Controls:</strong><br>
+    W/S - Move Platform <br>
+    <div id="levelButtons">
+        <button id="LevelOne">1</button>
+        <button id="LevelTwo">2</button>
+        <button id="LevelThree">3</button>
+    </div>
+    <button id="reset">Reset</button>
+</div>
 </body>
 </html>

@@ -2,33 +2,32 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import ballModel from "./models/bouncing_ball.glb";
+import { levelThreeBackground, levelTwoBackground, levelOneBackground } from './background/background.js';
 
 const SHOW_AXES_HELPER = true;
 const SHOW_PLATFORMS = true;
 const PLATFORM_SIZE = { radius: 10, height: 1 };
+const background = {levelOneBackground, levelTwoBackground, levelThreeBackground};
 let clock = new THREE.Clock();
+let GLOBAL_SCENE;
 let MIXER;
 
 function debugScene() {
     const { scene, camera, renderer } = basicSetup();
-
     setupLights(scene);
-
     if (SHOW_AXES_HELPER) {
         const axesHelper = new THREE.AxesHelper(10);
         scene.add(axesHelper);
     }
-
     if (SHOW_PLATFORMS) {
         const platform = createPlatform(PLATFORM_SIZE.radius, PLATFORM_SIZE.height, 0xCCCDC6);
         scene.add(platform);
     }
-
     camera.position.z = 5;
     camera.position.y = 5;
     const controls = new OrbitControls(camera, renderer.domElement);
-
     console.log('Debug scene initialized.');
+
 
     function animate() {
         requestAnimationFrame(animate);
@@ -73,7 +72,8 @@ function getBall(scene) {
 
 function basicSetup() {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('red');
+    GLOBAL_SCENE = scene; //set to black default background
+    background.levelOneBackground(scene);
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -89,5 +89,20 @@ function setupLights(scene) {
     directionalLight.position.set(1, 1, 1).normalize();
     scene.add(directionalLight);
 }
+
+//Level selection different backgrounds
+window.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("LevelOne").addEventListener("click", () => {
+        background.levelOneBackground(GLOBAL_SCENE);
+    });
+
+    document.getElementById("LevelTwo").addEventListener("click", () => {
+        background.levelTwoBackground(GLOBAL_SCENE);
+    });
+
+    document.getElementById("LevelThree").addEventListener("click", () => {
+        background.levelThreeBackground(GLOBAL_SCENE);
+    });
+});
 
 export { debugScene };
