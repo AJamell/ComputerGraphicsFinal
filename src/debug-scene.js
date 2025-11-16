@@ -28,7 +28,6 @@ function debugScene() {
     const controls = new OrbitControls(camera, renderer.domElement);
     console.log('Debug scene initialized.');
 
-
     function animate() {
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
@@ -104,5 +103,37 @@ window.addEventListener("DOMContentLoaded", () => {
         background.levelThreeBackground(GLOBAL_SCENE);
     });
 });
+
+function generatePlatformGeometries(count) {
+    const geometries = [];
+    const thetaLength = (2 * Math.PI) / count;
+    let currentAngle = 0;
+
+    const extrudeSettings = {
+        steps: 1,
+        depth: PLATFORM_SIZE.height,
+        bevelEnabled: false,
+        curveSegments: 64,
+    };
+
+    for (let i = 0; i < count; i++) {
+        // Create a shape that is a slice of a circle
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, PLATFORM_SIZE.radius, currentAngle, currentAngle + thetaLength, false);
+        shape.lineTo(0, 0);
+        shape.closePath();
+
+        // Extrude the shape
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+        // Rotate so extrusion goes upward
+        geometry.rotateX(Math.PI / 2);
+
+        geometries.push(geometry);
+        currentAngle += thetaLength;
+    }
+
+    return geometries;
+}
 
 export { debugScene };
