@@ -17,6 +17,9 @@ const PLATFORM_SIZE = { radius: 10, height: 1 };
 const background = {levelOneBackground, levelTwoBackground, levelThreeBackground};
 let GLOBAL_SCENE;
 
+//tower
+const towerHeight = {levelOne: 50, levelTwo: 100, levelThree: 200};
+
 //sounds
 const audioListener = new THREE.AudioListener(); // listener for the whole scene
 const audioLoader = new THREE.AudioLoader();   // loader for all sounds
@@ -67,7 +70,7 @@ function debugScene() {
     const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
 
     const towerGroup = new THREE.Group();
-    const towerGeometry = new THREE.CylinderGeometry(2, 2, 20, 32);
+    const towerGeometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
     const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
     const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
     towerGroup.add(towerMesh);
@@ -151,7 +154,6 @@ function playLandingSound() {
         landingSound.play();
     }
 }
-
 
 
 // function createFireBurst(position, scene) {
