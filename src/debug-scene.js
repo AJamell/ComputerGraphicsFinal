@@ -11,6 +11,12 @@ const background = {levelOneBackground, levelTwoBackground, levelThreeBackground
 let clock = new THREE.Clock();
 let GLOBAL_SCENE;
 let MIXER;
+let clipAction;
+let CLIP;
+
+const input = {};
+window.addEventListener('keydown', e => {input[e.key] = true;});
+window.addEventListener('keyup', e => {input[e.key] = false;});
 
 function debugScene() {
     const { scene, camera, renderer } = basicSetup();
@@ -28,22 +34,65 @@ function debugScene() {
     const controls = new OrbitControls(camera, renderer.domElement);
     console.log('Debug scene initialized.');
 
+    const platformGeometries = generatePlatformGeometries(8);
+    const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+
+    const towerGroup = new THREE.Group();
+    const towerGeometry = new THREE.CylinderGeometry(2, 2, 20, 32);
+    const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
+    const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
+    towerGroup.add(towerMesh);
+    towerMesh.position.y = 10;
+    const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
+    platformGroup.children[0].visible = false; //hide one platform to create a gap
+    towerGroup.add(platformGroup);
+    towerGroup.position.x = -7.5;
+    scene.add(towerGroup);
+
     function animate() {
+        if (input['a']) {
+            towerGroup.rotation.y += 0.07;
+            towerGroup.rotation.y %= (2 * Math.PI);
+            if (towerGroup.rotation.y < 0) {
+                towerGroup.rotation.y += 2 * Math.PI;
+            }
+            console.log(towerGroup.rotation.y % (2 * Math.PI));
+        }
+        if (input['d']) {
+            towerGroup.rotation.y -= 0.07;
+            towerGroup.rotation.y %= (2 * Math.PI);
+            if (towerGroup.rotation.y < 0) {
+                towerGroup.rotation.y += 2 * Math.PI;
+            }
+            console.log(towerGroup.rotation.y % (2 * Math.PI));
+        }
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
         if (MIXER) MIXER.update(delta);
         renderer.render(scene, camera);
         controls.update();
-
+        document.getElementById("ballInformation").innerText = `Animation Progress: ${clipAction ? (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2) : 'N/A'}`;
     }
     animate();
+}
+
+function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.height * 2) {
+    const platformGroup = new THREE.Group();
+
+    geometries.forEach((geometry) => {
+        const platformMesh = new THREE.Mesh(geometry, material);
+        platformMesh.position.y = yPosition;
+        platformGroup.add(platformMesh);
+    });
+
+    return platformGroup;
 }
 
 function createPlatform(radius, height, color) {
     const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
     const material = new THREE.MeshStandardMaterial({ color: color });
     const cylinder = new THREE.Mesh(geometry, material);
-    cylinder.position.y = -height;
+    cylinder.position.y = -height / 2;
     return cylinder;
 }
 
@@ -63,8 +112,11 @@ function getBall(scene) {
             gltf.animations.forEach((clip) => {
                 const action = MIXER.clipAction(clip);
                 action.play(); //for scene clips its Sphere|SphereAction
+                clipAction = action;
+                CLIP = action.getClip();
             });
         }
+        console.log(MIXER);
         scene.add(model);
     });
 }
