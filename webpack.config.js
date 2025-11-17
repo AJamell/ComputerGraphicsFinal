@@ -23,9 +23,14 @@ module.exports = {
                 generator: { filename: 'images/[name][ext]', },
             },
             {
-                test: /\.(stl|obj|mtl|gltf|glb)$/i,
+                test: /\.(stl|obj|mtl|gltf|glb|webp)$/i,
                 type: 'asset/resource',
                 generator: { filename: 'models/[name][ext]', },
+            },
+            {
+                test: /\.(mp3|flac)$/i,
+                type: 'asset/resource',
+                generator: { filename: 'sounds/[name][ext]', },
             }
         ],
     },
