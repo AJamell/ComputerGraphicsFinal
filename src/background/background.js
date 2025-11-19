@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader";
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import marioKartDKMap from "../models/mario_kart_8_deluxe_-_gcn_dk_mountain.glb";
-import marioKartHighway from "../models/mario_kart_8_deluxe_-_wii_moonview_highway.glb";
-import narutoMap from "../models/new_naruto_map_3d_model_by_djajang_studio.glb";
+import marioKartDKMap from "../models/dkMountain.glb";
+import marioKartHighway from "../models/cityMapMario.glb";
+import bowserMap from "../models/bowserMap.glb";
 
 const loader = new GLTFLoader();
 const draco = new DRACOLoader();
@@ -77,11 +77,11 @@ export function levelThreeBackground(scene) {
         scene.background = hdr;
     });
 
-    loader.load(narutoMap, (gltf) => {
+    loader.load(bowserMap, (gltf) => {
         const model = gltf.scene;
-        model.scale.set(.5,.5, .5);
+        model.scale.set(0.4,0.4, 0.4);
         scene.add(model);
         currentBackgroundModel = model;
     }, (err) => console.error(err));
-    scene.background = new THREE.Color("skyblue"); // fallback
+    scene.background = new THREE.Color("red"); // fallback
 }
