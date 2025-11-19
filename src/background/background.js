@@ -1,64 +1,92 @@
 import * as THREE from 'three';
-// import {GLTFLoader} from "three/addons/loaders/GLTFLoader";
-// import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-// import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-// import marioKartDKMap from "../models/mario_kart_8_deluxe_-_gcn_dk_mountain.glb";
-// import marioKartHighway from "../models/mario_kart_8_deluxe_-_wii_moonview_highway.glb";
+import {GLTFLoader} from "three/addons/loaders/GLTFLoader";
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import marioKartDKMap from "../models/mario_kart_8_deluxe_-_gcn_dk_mountain.glb";
+import marioKartHighway from "../models/mario_kart_8_deluxe_-_wii_moonview_highway.glb";
+import narutoMap from "../models/new_naruto_map_3d_model_by_djajang_studio.glb";
+
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
+loader.setDRACOLoader(draco);
+const rgbe = new RGBELoader();
+let currentBackgroundModel = null;
 
 
+function removeCurrentModel(scene) {
+    if (currentBackgroundModel) {
+        scene.remove(currentBackgroundModel);
+        // Dispose of resources
+        currentBackgroundModel.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                // Handle cases where material might be an array (MultiMaterial)
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(material => material.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+        currentBackgroundModel = null;
+    }
+}
 
 
-
-
-// export function levelOneBackground(scene) {
-//     const loader = new GLTFLoader();
-//     const draco = new DRACOLoader();
-//     draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
-//     loader.setDRACOLoader(draco);
-//     // Load an HDRI environment
-//     const rgbe = new RGBELoader();
-//     rgbe.load('/textures/sky.hdr', (hdr) => {
-//         hdr.mapping = THREE.EquirectangularReflectionMapping;
-//         scene.environment = hdr;
-//         scene.background = hdr;  // optional
-//     });
-//     loader.load(marioKartDKMap, (gltf) => {
-//         const model = gltf.scene;
-//         model.scale.set(0.01, 0.01, 0.01);
-//         scene.add(model);
-//     }, (err) => console.error(err));
-// }
-
-// export function levelTwoBackground(scene) {
-//     const loader = new GLTFLoader();
-//     const draco = new DRACOLoader();
-//     draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
-//     loader.setDRACOLoader(draco);
-//
-//     const rgbe = new RGBELoader();
-//     rgbe.load('/textures/sky.hdr', (hdr) => {
-//         hdr.mapping = THREE.EquirectangularReflectionMapping;
-//         scene.environment = hdr;
-//         scene.background = hdr;
-//     });
-//
-//     loader.load(marioKartHighway, (gltf) => {
-//         const model = gltf.scene;
-//         model.scale.set(0.01, 0.01, 0.01);
-//         scene.add(model);
-//     }, (err) => console.error(err));
-//     scene.background = new THREE.Color("skyblue"); // fallback
-// }
 
 
 export function levelOneBackground(scene) {
-    scene.background = new THREE.Color('orange');
+    removeCurrentModel(scene);
+
+    rgbe.load('/textures/sky.hdr', (hdr) => {
+        hdr.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = hdr;
+        scene.background = hdr;
+    });
+
+    loader.load(marioKartDKMap, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(0.01, 0.01, 0.01);
+        scene.add(model);
+        // 3. Update the tracking variable
+        currentBackgroundModel = model;
+    }, (err) => console.error(err));
 }
 
 export function levelTwoBackground(scene) {
-    scene.background = new THREE.Color('green');
+    removeCurrentModel(scene);
+
+    rgbe.load('/textures/sky.hdr', (hdr) => {
+        hdr.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = hdr;
+        scene.background = hdr;
+    });
+    loader.load(marioKartHighway, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(0.01, 0.01, 0.01);
+        scene.add(model);
+        // 3. Update the tracking variable
+        currentBackgroundModel = model;
+    }, (err) => console.error(err));
+    scene.background = new THREE.Color("skyblue"); // fallback
 }
 
 export function levelThreeBackground(scene) {
-    scene.background = new THREE.Color('blue');
+    removeCurrentModel(scene);
+
+    rgbe.load('/textures/sky.hdr', (hdr) => {
+        hdr.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = hdr;
+        scene.background = hdr;
+    });
+
+    loader.load(narutoMap, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(.5,.5, .5);
+        scene.add(model);
+        // 3. Update the tracking variable
+        currentBackgroundModel = model;
+    }, (err) => console.error(err));
+    scene.background = new THREE.Color("skyblue"); // fallback
 }

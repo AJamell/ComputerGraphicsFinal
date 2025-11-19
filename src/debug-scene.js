@@ -46,6 +46,7 @@ let MIXER;
 let clipAction;
 let CLIP;
 
+//input
 const input = {};
 window.addEventListener('keydown', e => {input[e.key] = true;});
 window.addEventListener('keyup', e => {input[e.key] = false;});
@@ -111,13 +112,11 @@ function debugScene() {
 
 function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.height * 2) {
     const platformGroup = new THREE.Group();
-
     geometries.forEach((geometry) => {
         const platformMesh = new THREE.Mesh(geometry, material);
         platformMesh.position.y = yPosition;
         platformGroup.add(platformMesh);
     });
-
     return platformGroup;
 }
 
@@ -145,7 +144,6 @@ function loadLandingSound() {
     });
 }
 
-
 function playLandingSound() {
     if (soundEffectsEnabled) {
         if (landingSound.isPlaying) {
@@ -154,7 +152,6 @@ function playLandingSound() {
         landingSound.play();
     }
 }
-
 
 // function createFireBurst(position, scene) {
 //     const material = new THREE.SpriteMaterial({
@@ -230,7 +227,6 @@ function getBall(scene) {
 function basicSetup() {
     const scene = new THREE.Scene();
     GLOBAL_SCENE = scene; //set to black default background
-    background.levelOneBackground(scene);
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
