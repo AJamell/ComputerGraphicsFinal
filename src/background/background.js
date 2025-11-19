@@ -17,11 +17,9 @@ let currentBackgroundModel = null;
 function removeCurrentModel(scene) {
     if (currentBackgroundModel) {
         scene.remove(currentBackgroundModel);
-        // Dispose of resources
         currentBackgroundModel.traverse(child => {
             if (child.geometry) child.geometry.dispose();
             if (child.material) {
-                // Handle cases where material might be an array (MultiMaterial)
                 if (Array.isArray(child.material)) {
                     child.material.forEach(material => material.dispose());
                 } else {
@@ -49,7 +47,6 @@ export function levelOneBackground(scene) {
         const model = gltf.scene;
         model.scale.set(0.01, 0.01, 0.01);
         scene.add(model);
-        // 3. Update the tracking variable
         currentBackgroundModel = model;
     }, (err) => console.error(err));
 }
@@ -66,7 +63,6 @@ export function levelTwoBackground(scene) {
         const model = gltf.scene;
         model.scale.set(0.01, 0.01, 0.01);
         scene.add(model);
-        // 3. Update the tracking variable
         currentBackgroundModel = model;
     }, (err) => console.error(err));
     scene.background = new THREE.Color("skyblue"); // fallback
@@ -85,7 +81,6 @@ export function levelThreeBackground(scene) {
         const model = gltf.scene;
         model.scale.set(.5,.5, .5);
         scene.add(model);
-        // 3. Update the tracking variable
         currentBackgroundModel = model;
     }, (err) => console.error(err));
     scene.background = new THREE.Color("skyblue"); // fallback
