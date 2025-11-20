@@ -8,6 +8,7 @@ import landingSoundFile from './sounds/lava.flac' //sound from https://opengamea
 //import fireTex from './models/fireEffect.png';
 import splatEffect from './models/splat.png';
 
+
 //platform setup
 const SHOW_AXES_HELPER = true;
 const SHOW_PLATFORMS = true;
@@ -51,6 +52,19 @@ const input = {};
 window.addEventListener('keydown', e => {input[e.key] = true;});
 window.addEventListener('keyup', e => {input[e.key] = false;});
 
+const platformGeometries = generatePlatformGeometries(8);
+const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+const towerGroup = new THREE.Group();
+const towerGeometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
+const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
+const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
+towerGroup.add(towerMesh);
+towerMesh.position.y = 10;
+const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
+platformGroup.children[0].visible = false; //hide one platform to create a gap
+towerGroup.add(platformGroup);
+towerGroup.position.x = -7.5;
+
 function debugScene() {
     const { scene, camera, renderer } = basicSetup();
     setupLights(scene);
@@ -67,22 +81,8 @@ function debugScene() {
     const controls = new OrbitControls(camera, renderer.domElement);
     console.log('Debug scene initialized.');
 
-    const platformGeometries = generatePlatformGeometries(8);
-    const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
-
-    const towerGroup = new THREE.Group();
-    const towerGeometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
-    const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
-    const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
-    towerGroup.add(towerMesh);
-    towerMesh.position.y = 10;
-    const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
-    platformGroup.children[0].visible = false; //hide one platform to create a gap
-    towerGroup.add(platformGroup);
-    towerGroup.position.x = -7.5;
     scene.add(towerGroup);
 
-    
     function animate() {
         if (input['a']) {
             towerGroup.rotation.y += 0.07;
@@ -111,13 +111,13 @@ function debugScene() {
 }
 
 function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.height * 2) {
-    const platformGroup = new THREE.Group();
+    const platformGroupNormal = new THREE.Group();
     geometries.forEach((geometry) => {
         const platformMesh = new THREE.Mesh(geometry, material);
         platformMesh.position.y = yPosition;
-        platformGroup.add(platformMesh);
+        platformGroupNormal.add(platformMesh);
     });
-    return platformGroup;
+    return platformGroupNormal;
 }
 
 function createPlatform(radius, height, color) {
@@ -313,7 +313,6 @@ function generatePlatformGeometries(count) {
         geometries.push(geometry);
         currentAngle += thetaLength;
     }
-
     return geometries;
 }
 

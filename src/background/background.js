@@ -3,9 +3,11 @@ import {GLTFLoader} from "three/addons/loaders/GLTFLoader";
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import marioKartDKMap from "../models/dkMountain.glb";
-import marioKartHighway from "../models/cityMapMario.glb";
 import bowserMap from "../models/bowserMap.glb";
+import marioAirport from "../models/marioAirport.glb";
 
+
+//load glb models
 const loader = new GLTFLoader();
 const draco = new DRACOLoader();
 draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
@@ -30,8 +32,6 @@ function removeCurrentModel(scene) {
         currentBackgroundModel = null;
     }
 }
-
-
 
 
 export function levelOneBackground(scene) {
@@ -59,9 +59,9 @@ export function levelTwoBackground(scene) {
         scene.environment = hdr;
         scene.background = hdr;
     });
-    loader.load(marioKartHighway, (gltf) => {
+    loader.load(marioAirport, (gltf) => {
         const model = gltf.scene;
-        model.scale.set(0.01, 0.01, 0.01);
+        model.scale.set(30, 30, 30);
         scene.add(model);
         currentBackgroundModel = model;
     }, (err) => console.error(err));
