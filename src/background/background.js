@@ -1,87 +1,104 @@
 import * as THREE from 'three';
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader";
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import marioKartDKMap from "../models/dkMountain.glb";
 import bowserMap from "../models/bowserMap.glb";
 import marioAirport from "../models/marioAirport.glb";
-
 
 //load glb models
 const loader = new GLTFLoader();
 const draco = new DRACOLoader();
 draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
 loader.setDRACOLoader(draco);
-const rgbe = new RGBELoader();
 let currentBackgroundModel = null;
 
-
 function removeCurrentModel(scene) {
-    if (currentBackgroundModel) {
-        scene.remove(currentBackgroundModel);
-        currentBackgroundModel.traverse(child => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(material => material.dispose());
-                } else {
-                    child.material.dispose();
-                }
+    if (!currentBackgroundModel) return;
+    scene.remove(currentBackgroundModel);
+    currentBackgroundModel.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+            if (Array.isArray(child.material)) {
+                child.material.forEach(m => m.dispose());
+            } else {
+                child.material.dispose();
             }
-        });
-        currentBackgroundModel = null;
-    }
+        }
+    });
+    currentBackgroundModel = null;
 }
 
-
-export function levelOneBackground(scene) {
+export function levelOneBackground(scene, camera,renderer) {
     removeCurrentModel(scene);
+    scene.background = new THREE.Color("#87CEFA"); // bright sky (no HDR background)
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    loader.load(
+        marioKartDKMap,
+        (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(0.01, 0.01, 0.01);
+            model.position.set(0, -40, -55);
+            model.castShadow = true;
+            model.receiveShadow = true;
 
-    rgbe.load('/textures/sky.hdr', (hdr) => {
-        hdr.mapping = THREE.EquirectangularReflectionMapping;
-        scene.environment = hdr;
-        scene.background = hdr;
-    });
+            scene.add(model);
+            currentBackgroundModel = model;
+        },
+        () => {},
+        (err) => console.error("GLB Load Error:", err)
+    );
 
-    loader.load(marioKartDKMap, (gltf) => {
-        const model = gltf.scene;
-        model.scale.set(0.01, 0.01, 0.01);
-        scene.add(model);
-        currentBackgroundModel = model;
-    }, (err) => console.error(err));
+    camera.position.set(-2, 10, -50);
+    camera.lookAt(0, 5, 0);
 }
 
-export function levelTwoBackground(scene) {
+export function levelTwoBackground(scene, camera,renderer) {
     removeCurrentModel(scene);
+    scene.background = new THREE.Color("skyblue");
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    loader.load(
+        marioAirport,
+        (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(30, 30, 30);
+            model.position.set(0, -35, 200);
+            model.castShadow = true;
+            model.receiveShadow = true;
 
-    rgbe.load('/textures/sky.hdr', (hdr) => {
-        hdr.mapping = THREE.EquirectangularReflectionMapping;
-        scene.environment = hdr;
-        scene.background = hdr;
-    });
-    loader.load(marioAirport, (gltf) => {
-        const model = gltf.scene;
-        model.scale.set(30, 30, 30);
-        scene.add(model);
-        currentBackgroundModel = model;
-    }, (err) => console.error(err));
-    scene.background = new THREE.Color("skyblue"); // fallback
+            scene.add(model);
+            currentBackgroundModel = model;
+        },
+        () => {},
+        (err) => console.error("GLB Load Error:", err)
+    );
+
+    camera.position.set(-5, -20, -30);
+    camera.lookAt(-7.5, 10, 0);
 }
 
-export function levelThreeBackground(scene) {
+export function levelThreeBackground(scene, camera,renderer) {
     removeCurrentModel(scene);
+    scene.background = new THREE.Color("#1A0A0A"); // dark red mist
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.8;
 
-    rgbe.load('/textures/sky.hdr', (hdr) => {
-        hdr.mapping = THREE.EquirectangularReflectionMapping;
-        scene.environment = hdr;
-        scene.background = hdr;
-    });
+    loader.load(
+        bowserMap,
+        (gltf) => {
+            const model = gltf.scene;
+            model.scale.set(2, 2, 2);
+            model.position.set(0, -108, -30);
+            model.castShadow = true;
+            model.receiveShadow = true;
 
-    loader.load(bowserMap, (gltf) => {
-        const model = gltf.scene;
-        model.scale.set(0.4,0.4, 0.4);
-        scene.add(model);
-        currentBackgroundModel = model;
-    }, (err) => console.error(err));
-    scene.background = new THREE.Color("red"); // fallback
+            scene.add(model);
+            currentBackgroundModel = model;
+        },
+        () => {},
+        (err) => console.error("GLB Load Error:", err)
+    );
+    camera.position.set(-5, -20, -30);
+    camera.lookAt(-7.5, 10, 0);
 }

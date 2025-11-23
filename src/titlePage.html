@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpg" href="<%= require('./images/favicon.jpg') %>">
+    <title>Helix Jump</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #mainMenu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: red;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #mainMenu.hidden {
+            display: none;
+        }
+
+        .title {
+            font-size: 72px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+            margin-bottom: 50px;
+        }
+
+        .menu-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .menu-box h3 {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .level-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .level-btn {
+            width: 80px;
+            height: 80px;
+            font-size: 36px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.9);
+            color: black;
+            border: 3px solid transparent;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+
+        .level-btn:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+
+        .play-btn {
+            width: 200px;
+            height: 60px;
+            font-size: 28px;
+            font-weight: bold;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto 0;
+        }
+
+        .play-btn:hover {
+            background: #45a049;
+        }
+
+        #gameControls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
+            display: none;
+        }
+
+        #gameControls.visible {
+            display: block;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .control-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+        }
+
+        .quit-btn {
+            background: #f44336;
+        }
+
+        .quit-btn:hover {
+            background: #da190b;
+        }
+    </style>
+</head>
+<body>
+
+<div id="mainMenu">
+    <h1 class="title">HELIX JUMP</h1>
+
+    <div class="menu-box">
+        <h3>Select Level</h3>
+        <div class="level-buttons">
+            <button class="level-btn" id="level1">1</button>
+            <button class="level-btn" id="level2">2</button>
+            <button class="level-btn" id="level3">3</button>
+        </div>
+        <button class="play-btn" id="playBtn">PLAY</button>
+    </div>
+</div>
+
+<div id="gameControls">
+    <strong>Controls:</strong> a/d - Rotate<br>
+    <div id="ballInformation">Animation Progress: N/A</div>
+    <div class="control-buttons">
+        <button class="control-btn quit-btn" id="quitBtn">Quit</button>
+        <button class="control-btn" id="musicBtn">Music</button>
+        <button class="control-btn" id="soundBtn">Sound</button>
+    </div>
+</div>
+
+</body>
+</html>

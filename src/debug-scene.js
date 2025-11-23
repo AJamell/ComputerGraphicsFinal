@@ -5,8 +5,9 @@ import ballModel from "./models/bouncing_ball.glb";
 import { levelThreeBackground, levelTwoBackground, levelOneBackground } from './background/background.js';
 import bossAudio from './sounds/boss_type_4.mp3'
 import landingSoundFile from './sounds/lava.flac' //sound from https://opengameart.org/content/lava-splash
-//import fireTex from './models/fireEffect.png';
+import fireTex from './images/fire.png';
 import splatEffect from './models/splat.png';
+import { getParticleSystem } from './getParticleSystem.js';
 
 
 //platform setup
@@ -14,12 +15,46 @@ const SHOW_AXES_HELPER = true;
 const SHOW_PLATFORMS = true;
 const PLATFORM_SIZE = { radius: 10, height: 1 };
 
+
+//score
+let score = 0;
+
+
 //background
 const background = {levelOneBackground, levelTwoBackground, levelThreeBackground};
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+
+
+//scene
 let GLOBAL_SCENE;
+let GLOBAL_CAMERA;
+let GLOBAL_RENDERER;
+let fireEffect;
 
 //tower
-const towerHeight = {levelOne: 50, levelTwo: 100, levelThree: 200};
+const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
+const textureLoader = new THREE.TextureLoader();
+
+//materials
+const lightBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x27E0F5 });
+const killFieldTowerSlice = new THREE.MeshStandardMaterial({ color:0xAD1F1F });
+const darkBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x1F32AD });
+const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
+const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
+
+//camera
+const aspect = window.innerWidth / window.innerHeight;
+const viewSize = 30;
+const orthographicCamera = new THREE.OrthographicCamera(
+    -viewSize * aspect / 2, // left
+    viewSize * aspect / 2, // right
+    viewSize / 2, // top
+    -viewSize / 2,// bottom
+    0.1,// near
+    1000 // far
+);
+const perspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
 
 //sounds
 const audioListener = new THREE.AudioListener(); // listener for the whole scene
@@ -38,8 +73,9 @@ const ballMaterial = new THREE.MeshStandardMaterial({
 
 //fire + splat
 const loader = new THREE.TextureLoader();
-//const fireTexture = loader.load(fireTex);
+const fireTexture = loader.load(fireTex);
 const splatTexture = loader.load(splatEffect);
+
 
 //animation
 let clock = new THREE.Clock();
@@ -53,20 +89,28 @@ window.addEventListener('keydown', e => {input[e.key] = true;});
 window.addEventListener('keyup', e => {input[e.key] = false;});
 
 const platformGeometries = generatePlatformGeometries(8);
-const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+const platformMaterial = new THREE.MeshStandardMaterial({ color: "red" });
+
 const towerGroup = new THREE.Group();
 const towerGeometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
-const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
+const towerMaterial = new THREE.MeshStandardMaterial({color: new THREE.Color().setRGB( 39,224,245)});
 const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
+towerMesh.castShadow = true;
+towerMesh.receiveShadow = true;
 towerGroup.add(towerMesh);
 towerMesh.position.y = 10;
+
 const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
+const platformGroupTwo = createPlatformGroup(platformGeometries, platformMaterial, 24);
+const platformGroupThree = createPlatformGroup(platformGeometries, platformMaterial, 36);
 platformGroup.children[0].visible = false; //hide one platform to create a gap
 towerGroup.add(platformGroup);
+towerGroup.add(platformGroupTwo);
+towerGroup.add(platformGroupThree);
 towerGroup.position.x = -7.5;
 
 function debugScene() {
-    const { scene, camera, renderer } = basicSetup();
+    const { scene, perspectiveCamera: camera, renderer } = basicSetup();
     setupLights(scene);
     if (SHOW_AXES_HELPER) {
         const axesHelper = new THREE.AxesHelper(10);
@@ -76,11 +120,10 @@ function debugScene() {
         const platform = createPlatform(PLATFORM_SIZE.radius, PLATFORM_SIZE.height, 0xCCCDC6);
         scene.add(platform);
     }
-    camera.position.z = 20;
-    camera.position.y = 10;
+    camera.position.set(0, 15, 50);
+    camera.lookAt(-7.5, 10, 0);
     const controls = new OrbitControls(camera, renderer.domElement);
     console.log('Debug scene initialized.');
-
     scene.add(towerGroup);
 
     function animate() {
@@ -102,7 +145,12 @@ function debugScene() {
         }
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
+        updateScoreUI();
+        if (fireEffect && fireEffect.update) {
+            fireEffect.update(delta);
+        }
         if (MIXER) MIXER.update(delta);
+        renderer.shadowMap.enabled = true;
         renderer.render(scene, camera);
         controls.update();
         document.getElementById("ballInformation").innerText = `Animation Progress: ${clipAction ? (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2) : 'N/A'}`;
@@ -115,6 +163,8 @@ function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.hei
     geometries.forEach((geometry) => {
         const platformMesh = new THREE.Mesh(geometry, material);
         platformMesh.position.y = yPosition;
+        platformMesh.castShadow = true;
+        platformMesh.receiveShadow = true;
         platformGroupNormal.add(platformMesh);
     });
     return platformGroupNormal;
@@ -153,37 +203,15 @@ function playLandingSound() {
     }
 }
 
-// function createFireBurst(position, scene) {
-//     const material = new THREE.SpriteMaterial({
-//         map: fireTexture,
-//         transparent: true,
-//         opacity: 1
-//     });
-//     const sprite = new THREE.Sprite(material);
-//     sprite.scale.set(2, 2, 2);
-//     sprite.position.copy(position);
-//     scene.add(sprite);
-//     let life = 0.2;
-//     const interval = setInterval(() => {
-//         life -= 0.01;
-//         sprite.material.opacity = life * 5;
-//         sprite.scale.multiplyScalar(1.07);
-//         if (life <= 0) {
-//             clearInterval(interval);
-//             scene.remove(sprite);
-//         }
-//     }, 16);
-// }
-
 function createSplat(position, scene) {
     const geometry = new THREE.PlaneGeometry(3, 3);
-    const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+    const ballColors = [ballLightBlueSplat.color, ballDarkBlueSplat.color]
     const material = new THREE.MeshBasicMaterial({
         map: splatTexture,
         transparent: true,
         depthWrite: false,
         side: THREE.DoubleSide,
-        color: randomColor
+        color: ballColors,
     });
     const splat = new THREE.Mesh(geometry, material);
     splat.position.set(position.x, 0.01, position.z);
@@ -200,23 +228,32 @@ function getBall(scene) {
         model.traverse((child) => {
             if (child.isMesh) {
                 child.material = ballMaterial;
+                child.castShadow = true;
+                child.receiveShadow = true;
             }
+        });
+        fireEffect = getParticleSystem({
+            GLOBAL_CAMERA,
+            emitter: model,
+            parent: scene,
+            rate: 10,
+            texture: './images/fire.png',
         });
         if (gltf.animations && gltf.animations.length > 0) {
             MIXER = new THREE.AnimationMixer(model);
             gltf.animations.forEach((clip) => {
                 const action = MIXER.clipAction(clip);
                 action.play(); //for scene clips its Sphere|SphereAction
-                // action.getMixer().addEventListener('loop', () => {
-                //     createFireBurst(model.position, scene);
-                // });
                 clipAction = action;
                 CLIP = action.getClip();
-                action.getMixer().addEventListener("loop", () => {
-                    const pos = model.position.clone();
-                    createSplat(pos, scene);
-                    playLandingSound();
-                });
+                if (MIXER) {
+                    MIXER.addEventListener("loop", () => {
+                        const pos = model.position.clone();
+                        createSplat(pos, scene);
+                        playLandingSound();
+                        score++;
+                    });
+                }
             });
         }
         console.log(MIXER);
@@ -224,45 +261,75 @@ function getBall(scene) {
     });
 }
 
+
 function basicSetup() {
     const scene = new THREE.Scene();
-    GLOBAL_SCENE = scene; //set to black default background
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
+    GLOBAL_SCENE = scene; //set to black default background
+    GLOBAL_CAMERA = perspectiveCamera;
+    GLOBAL_RENDERER = renderer;
+    renderer.shadowMap.enabled = true;
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     getBall(scene);
-    camera.add(audioListener);
+    perspectiveCamera.add(audioListener);
     loadBackgroundSound();
     loadLandingSound();
-    return { scene, camera, renderer};
+    return { scene, perspectiveCamera, renderer };
 }
 
 function setupLights(scene) {
-    const ambientLight = new THREE.AmbientLight(0x404040,1.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
-    directionalLight.position.set(1, 1, 1).normalize();
-    scene.add(directionalLight);
-    const sun = new THREE.DirectionalLight(0xffffff, 4);
+
     sun.position.set(10, 20, 10);
+    sun.castShadow = true;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 100;
+    sun.shadow.camera.left = -20;
+    sun.shadow.camera.right = 20;
+    sun.shadow.camera.top = 20;
+    sun.shadow.camera.bottom = -20;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
     scene.add(sun);
 }
 
-//Level selection different backgrounds
-window.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("LevelOne").addEventListener("click", () => {
-        background.levelOneBackground(GLOBAL_SCENE);
-    });
+function generatePlatformGeometries(count) {
+    const geometries = [];
+    const thetaLength = (2 * Math.PI) / count;
+    let currentAngle = 0;
 
-    document.getElementById("LevelTwo").addEventListener("click", () => {
-        background.levelTwoBackground(GLOBAL_SCENE);
-    });
+    const extrudeSettings = {
+        steps: 1,
+        depth: PLATFORM_SIZE.height,
+        bevelEnabled: false,
+        curveSegments: 64,
+    };
 
-    document.getElementById("LevelThree").addEventListener("click", () => {
-        background.levelThreeBackground(GLOBAL_SCENE);
-    });
-});
+    for (let i = 0; i < count; i++) {
+        // Create a shape that is a slice of a circle
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, PLATFORM_SIZE.radius, currentAngle, currentAngle + thetaLength, false);
+        shape.lineTo(0, 0);
+        shape.closePath();
+        // Extrude the shape
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        // Rotate so extrusion goes upward
+        geometry.rotateX(Math.PI / 2);
+        geometries.push(geometry);
+        currentAngle += thetaLength;
+    }
+    return geometries;
+}
+
+
+
+// -- gui section --
+function updateScoreUI() {
+    const userScore = document.getElementById("score");
+    if (userScore) userScore.innerText = `Score: ${score}`;
+}
 
 // sounds
 window.addEventListener("DOMContentLoaded", () => {
@@ -286,34 +353,26 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 })
 
+//levels
+window.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("LevelOne").addEventListener("click", () => {
+        background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER);
+        sun.intensity = 0.8;
+        GLOBAL_CAMERA = perspectiveCamera;
+    });
 
-function generatePlatformGeometries(count) {
-    const geometries = [];
-    const thetaLength = (2 * Math.PI) / count;
-    let currentAngle = 0;
+    document.getElementById("LevelTwo").addEventListener("click", () => {
+        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER);
+        sun.intensity = 1.2;
+        GLOBAL_CAMERA = orthographicCamera;
+    });
 
-    const extrudeSettings = {
-        steps: 1,
-        depth: PLATFORM_SIZE.height,
-        bevelEnabled: false,
-        curveSegments: 64,
-    };
+    document.getElementById("LevelThree").addEventListener("click", () => {
+        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER);
+        sun.intensity = 4;
+        GLOBAL_CAMERA = orthographicCamera;
+    });
+})
 
-    for (let i = 0; i < count; i++) {
-        // Create a shape that is a slice of a circle
-        const shape = new THREE.Shape();
-        shape.absarc(0, 0, PLATFORM_SIZE.radius, currentAngle, currentAngle + thetaLength, false);
-        shape.lineTo(0, 0);
-        shape.closePath();
-
-        // Extrude the shape
-        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-        // Rotate so extrusion goes upward
-        geometry.rotateX(Math.PI / 2);
-        geometries.push(geometry);
-        currentAngle += thetaLength;
-    }
-    return geometries;
-}
 
 export { debugScene };
