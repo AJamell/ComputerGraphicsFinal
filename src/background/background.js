@@ -43,11 +43,13 @@ export function levelOneBackground(scene, camera, renderer, controls) {
             model.receiveShadow = true;
             scene.add(model);
             currentBackgroundModel = model;
+            const targetPoint = new THREE.Vector3(-7.5, 10, 0);
+            camera.position.set(50, 15, 0);
+            camera.lookAt(targetPoint);
+            controls.target.copy(targetPoint);
             controls.enabled = false;
-            camera.position.set(5, 60, -43);
-            camera.lookAt(model.position.x, model.position.y, model.position.z);
-            controls.target.set(model.position.x, model.position.y, model.position.z);
             controls.update();
+
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
