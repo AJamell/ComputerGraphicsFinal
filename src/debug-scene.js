@@ -256,6 +256,7 @@ function getBall(scene) {
             GLOBAL_MIXERS.push(MIXER);
             gltf.animations.forEach((clip) => {
                 const action = MIXER.clipAction(clip);
+                action.timeScale = 0.5;
                 action.play();
                 clipAction = action;
                 CLIP = action.getClip();
