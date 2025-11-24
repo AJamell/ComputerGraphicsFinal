@@ -70,9 +70,10 @@ export function levelTwoBackground(scene, camera, renderer, controls) {
             scene.add(model);
             currentBackgroundModel = model;
             controls.enabled = false;
-            camera.position.set(30, 10, 0);
-            camera.lookAt(0, -108, -30);
-            controls.target.set(model.position.x, model.position.y, model.position.z);
+            camera.position.set(200, 100, 200);
+            const targetPoint = new THREE.Vector3(0, 0, 0);
+            camera.lookAt(targetPoint);
+            controls.target.copy(targetPoint);
             controls.update();
         },
         () => {},
@@ -85,7 +86,6 @@ export function levelThreeBackground(scene, camera, renderer, controls) {
     scene.background = new THREE.Color("#1A0A0A"); // dark red mist
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.8;
-
     loader.load(
         bowserMap,
         (gltf) => {
@@ -97,9 +97,10 @@ export function levelThreeBackground(scene, camera, renderer, controls) {
             scene.add(model);
             currentBackgroundModel = model;
             controls.enabled = false;
-            camera.position.set(-5, -20, -30);
-            camera.lookAt(model.position.x, model.position.y, model.position.z);
-            controls.target.set(model.position.x, model.position.y, model.position.z);
+            camera.position.set(0, -100, 0);
+            const targetPoint = new THREE.Vector3(0, 10, 0);
+            camera.lookAt(targetPoint);
+            controls.target.copy(targetPoint);
             controls.update();
         },
         () => {},

@@ -8,14 +8,15 @@ import landingSoundFile from './sounds/lava.flac' //sound from https://opengamea
 import fireEffect from './models/fire.glb';
 import splatEffect from './models/splat.png';
 
-
 //platform setup
 const SHOW_AXES_HELPER = true;
 const SHOW_PLATFORMS = true;
 const PLATFORM_SIZE = { radius: 10, height: 1 };
 
-//score
+//gui
 let score = 0;
+let currentLevel = 1;
+let isPlaying = false;
 
 //background
 const background = {levelOneBackground, levelTwoBackground, levelThreeBackground};
@@ -124,31 +125,38 @@ function debugScene() {
     scene.add(towerGroup);
 
     function animate() {
-        if (input['a']) {
-            towerGroup.rotation.y += 0.07;
-            towerGroup.rotation.y %= (2 * Math.PI);
-            if (towerGroup.rotation.y < 0) {
-                towerGroup.rotation.y += 2 * Math.PI;
-            }
-            console.log(towerGroup.rotation.y % (2 * Math.PI));
-        }
-        if (input['d']) {
-            towerGroup.rotation.y -= 0.07;
-            towerGroup.rotation.y %= (2 * Math.PI);
-            if (towerGroup.rotation.y < 0) {
-                towerGroup.rotation.y += 2 * Math.PI;
-            }
-            console.log(towerGroup.rotation.y % (2 * Math.PI));
-        }
         requestAnimationFrame(animate);
-        const delta = clock.getDelta();
-        if (MIXER) MIXER.update(delta);
-        updateScoreUI();
-        GLOBAL_MIXERS.forEach(mixer => mixer.update(delta));
-        renderer.shadowMap.enabled = true;
+        if (isPlaying) {
+            if (input['a']) {
+                towerGroup.rotation.y += 0.07;
+                towerGroup.rotation.y %= (2 * Math.PI);
+                if (towerGroup.rotation.y < 0) {
+                    towerGroup.rotation.y += 2 * Math.PI;
+                }
+                // console.log(towerGroup.rotation.y % (2 * Math.PI)); // Keeping original console logs
+            }
+            if (input['d']) {
+                towerGroup.rotation.y -= 0.07;
+                towerGroup.rotation.y %= (2 * Math.PI);
+                if (towerGroup.rotation.y < 0) {
+                    towerGroup.rotation.y += 2 * Math.PI;
+                }
+                // console.log(towerGroup.rotation.y % (2 * Math.PI)); // Keeping original console logs
+            }
+
+            const delta = clock.getDelta();
+            if (MIXER) MIXER.update(delta);
+            updateScoreUI();
+            GLOBAL_MIXERS.forEach(mixer => mixer.update(delta));
+            renderer.shadowMap.enabled = true;
+            controls.update();
+            document.getElementById("ballInformation").innerText = `Animation Progress: ${clipAction ? (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2) : 'N/A'}`;
+        } else {
+            clock.getDelta();
+            controls.update();
+        }
+
         renderer.render(scene, camera);
-        controls.update();
-        document.getElementById("ballInformation").innerText = `Animation Progress: ${clipAction ? (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2) : 'N/A'}`;
     }
     animate();
 }
@@ -190,7 +198,7 @@ function loadLandingSound() {
 }
 
 function playLandingSound() {
-    if (soundEffectsEnabled) {
+    if (soundEffectsEnabled && isPlaying) {
         if (landingSound.isPlaying) {
             landingSound.stop();
         }
@@ -278,7 +286,7 @@ function basicSetup() {
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     GLOBAL_SCENE = scene; //set to black default background
-    scene.background = new THREE.Color('green');
+    scene.background = new THREE.Color('lightblue');
     GLOBAL_CAMERA = perspectiveCamera;
     GLOBAL_RENDERER = renderer;
     renderer.shadowMap.enabled = true;
@@ -348,16 +356,88 @@ function updateScoreUI() {
     if (userScore) userScore.innerText = `Score: ${score}`;
 }
 
-// sounds
+function selectLevel(level) {
+    currentLevel = level;
+    ['LevelOne', 'LevelTwo', 'LevelThree'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.classList.remove('selected');
+        }
+    });
+    const selectedBtn = document.getElementById(`Level${level === 1 ? 'One' : level === 2 ? 'Two' : 'Three'}`);
+    if (selectedBtn) {
+        selectedBtn.classList.add('selected');
+    }
+}
+
+function applyLevelSetup(level) {
+    if (level === 1) {
+        GLOBAL_CAMERA = perspectiveCamera;
+        background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
+        sun.intensity = 0.8;
+        towerMesh.geometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
+    } else if (level === 2) {
+        GLOBAL_CAMERA = orthographicCamera;
+        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
+        sun.intensity = 1.2;
+        towerMesh.geometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelTwo, 32);
+    } else if (level === 3) {
+        GLOBAL_CAMERA = orthographicCamera;
+        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER,GLOBAL_CONTROLS);
+        sun.intensity = 4;
+        towerMesh.geometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelThree, 32);
+    }
+    if (GLOBAL_CONTROLS) {
+        GLOBAL_CONTROLS.object = GLOBAL_CAMERA;
+        GLOBAL_CONTROLS.enabled = true;
+        GLOBAL_CAMERA.updateProjectionMatrix();
+    }
+}
+
+//play and reset
 window.addEventListener("DOMContentLoaded", () => {
+
+    document.getElementById("playButton").addEventListener("click", () => { // 👈 CHANGED ID from "play" to "playButton"
+        if (!isPlaying) {
+            applyLevelSetup(currentLevel);
+            isPlaying = true;
+
+            if (!musicStarted) {
+                backgroundSound.play();
+                musicStarted = true;
+            }
+            document.getElementById("titleOverlay").classList.add('hidden');
+            document.getElementById("playButton").style.display = 'none';
+        }
+    })
+
+    document.getElementById("reset").addEventListener("click", () => {
+        window.location.reload();
+    })
+
+    document.getElementById("LevelOne").addEventListener("click", () => {
+        selectLevel(1);
+    });
+
+    document.getElementById("LevelTwo").addEventListener("click", () => {
+        selectLevel(2);
+    });
+
+    document.getElementById("LevelThree").addEventListener("click", () => {
+        selectLevel(3);
+    });
+
     //background music
     document.getElementById("Music").addEventListener("click", () => {
         if (!musicStarted) {
             backgroundSound.play();
             musicStarted = true;
         } else {
-            if (backgroundSound.isPlaying) backgroundSound.pause();
-            else backgroundSound.play();
+            if (backgroundSound.isPlaying) {
+                backgroundSound.pause();
+            } else if (isPlaying) {
+                backgroundSound.play();
+            }
         }
     });
 
@@ -368,31 +448,7 @@ window.addEventListener("DOMContentLoaded", () => {
             landingSound.stop();
         }
     });
+    selectLevel(currentLevel);
 })
 
-//levels
-window.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("LevelOne").addEventListener("click", () => {
-        GLOBAL_CAMERA = perspectiveCamera;
-        background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
-        sun.intensity = 0.8;
-        towerGeometry.height = towerHeight.levelOne;
-    });
-
-    document.getElementById("LevelTwo").addEventListener("click", () => {
-        GLOBAL_CAMERA = orthographicCamera;
-        console.log(GLOBAL_CAMERA);
-        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
-        console.log(GLOBAL_CAMERA);
-        sun.intensity = 1.2;
-        towerGeometry.height = towerHeight.levelTwo;
-    });
-
-    document.getElementById("LevelThree").addEventListener("click", () => {
-        GLOBAL_CAMERA = orthographicCamera;
-        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER,GLOBAL_CONTROLS);
-        sun.intensity = 4;
-        towerGeometry.height = towerHeight.levelThree;
-    });
-})
 export { debugScene };
