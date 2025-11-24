@@ -33,12 +33,11 @@ let fireEffect;
 
 //tower
 const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
-const textureLoader = new THREE.TextureLoader();
 
 //materials
-const lightBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x27E0F5 });
-const killFieldTowerSlice = new THREE.MeshStandardMaterial({ color:0xAD1F1F });
-const darkBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x1F32AD });
+// const lightBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x27E0F5 });
+// const killFieldTowerSlice = new THREE.MeshStandardMaterial({ color:0xAD1F1F });
+// const darkBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x1F32AD });
 const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
 const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
 
@@ -211,7 +210,7 @@ function createSplat(position, scene) {
         transparent: true,
         depthWrite: false,
         side: THREE.DoubleSide,
-        color: ballColors,
+        color: ballColors[Math.floor(Math.random() * ballColors.length)],
     });
     const splat = new THREE.Mesh(geometry, material);
     splat.position.set(position.x, 0.01, position.z);
@@ -358,18 +357,21 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("LevelOne").addEventListener("click", () => {
         background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER);
         sun.intensity = 0.8;
+        towerGeometry.height = towerHeight.levelOne;
         GLOBAL_CAMERA = perspectiveCamera;
     });
 
     document.getElementById("LevelTwo").addEventListener("click", () => {
         background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER);
         sun.intensity = 1.2;
+        towerGeometry.height = towerHeight.levelTwo;
         GLOBAL_CAMERA = orthographicCamera;
     });
 
     document.getElementById("LevelThree").addEventListener("click", () => {
         background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER);
         sun.intensity = 4;
+        towerGeometry.height = towerHeight.levelThree;
         GLOBAL_CAMERA = orthographicCamera;
     });
 })
