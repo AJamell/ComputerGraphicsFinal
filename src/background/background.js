@@ -28,9 +28,9 @@ function removeCurrentModel(scene) {
     currentBackgroundModel = null;
 }
 
-export function levelOneBackground(scene, camera,renderer) {
+export function levelOneBackground(scene, camera, renderer, controls) {
     removeCurrentModel(scene);
-    scene.background = new THREE.Color("#87CEFA"); // bright sky (no HDR background)
+    scene.background = new THREE.Color("#87CEFA");
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
     loader.load(
@@ -41,19 +41,20 @@ export function levelOneBackground(scene, camera,renderer) {
             model.position.set(0, -40, -55);
             model.castShadow = true;
             model.receiveShadow = true;
-
             scene.add(model);
             currentBackgroundModel = model;
+            controls.enabled = false;
+            camera.position.set(5, 60, -43);
+            camera.lookAt(model.position.x, model.position.y, model.position.z);
+            controls.target.set(model.position.x, model.position.y, model.position.z);
+            controls.update();
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
     );
-
-    camera.position.set(-2, 10, -50);
-    camera.lookAt(0, 5, 0);
 }
 
-export function levelTwoBackground(scene, camera,renderer) {
+export function levelTwoBackground(scene, camera, renderer, controls) {
     removeCurrentModel(scene);
     scene.background = new THREE.Color("skyblue");
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -66,19 +67,20 @@ export function levelTwoBackground(scene, camera,renderer) {
             model.position.set(0, -35, 200);
             model.castShadow = true;
             model.receiveShadow = true;
-
             scene.add(model);
             currentBackgroundModel = model;
+            controls.enabled = false;
+            camera.position.set(30, 10, 0);
+            camera.lookAt(0, -108, -30);
+            controls.target.set(model.position.x, model.position.y, model.position.z);
+            controls.update();
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
     );
-
-    camera.position.set(-5, -20, -30);
-    camera.lookAt(-7.5, 10, 0);
 }
 
-export function levelThreeBackground(scene, camera,renderer) {
+export function levelThreeBackground(scene, camera, renderer, controls) {
     removeCurrentModel(scene);
     scene.background = new THREE.Color("#1A0A0A"); // dark red mist
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -92,13 +94,15 @@ export function levelThreeBackground(scene, camera,renderer) {
             model.position.set(0, -108, -30);
             model.castShadow = true;
             model.receiveShadow = true;
-
             scene.add(model);
             currentBackgroundModel = model;
+            controls.enabled = false;
+            camera.position.set(-5, -20, -30);
+            camera.lookAt(model.position.x, model.position.y, model.position.z);
+            controls.target.set(model.position.x, model.position.y, model.position.z);
+            controls.update();
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
     );
-    camera.position.set(-5, -20, -30);
-    camera.lookAt(-7.5, 10, 0);
 }

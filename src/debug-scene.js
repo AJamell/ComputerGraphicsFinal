@@ -5,9 +5,8 @@ import ballModel from "./models/bouncing_ball.glb";
 import { levelThreeBackground, levelTwoBackground, levelOneBackground } from './background/background.js';
 import bossAudio from './sounds/boss_type_4.mp3'
 import landingSoundFile from './sounds/lava.flac' //sound from https://opengameart.org/content/lava-splash
-import fireTex from './images/fire.png';
+import fireEffect from './models/fire.glb';
 import splatEffect from './models/splat.png';
-import { getParticleSystem } from './getParticleSystem.js';
 
 
 //platform setup
@@ -15,21 +14,17 @@ const SHOW_AXES_HELPER = true;
 const SHOW_PLATFORMS = true;
 const PLATFORM_SIZE = { radius: 10, height: 1 };
 
-
 //score
 let score = 0;
-
 
 //background
 const background = {levelOneBackground, levelTwoBackground, levelThreeBackground};
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 
-
 //scene
 let GLOBAL_SCENE;
 let GLOBAL_CAMERA;
 let GLOBAL_RENDERER;
-let fireEffect;
 
 //tower
 const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
@@ -41,7 +36,7 @@ const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
 const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
 const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
 
-//camera
+//cameras
 const aspect = window.innerWidth / window.innerHeight;
 const viewSize = 30;
 const orthographicCamera = new THREE.OrthographicCamera(
@@ -53,7 +48,6 @@ const orthographicCamera = new THREE.OrthographicCamera(
     1000 // far
 );
 const perspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
 
 //sounds
 const audioListener = new THREE.AudioListener(); // listener for the whole scene
@@ -72,11 +66,11 @@ const ballMaterial = new THREE.MeshStandardMaterial({
 
 //fire + splat
 const loader = new THREE.TextureLoader();
-const fireTexture = loader.load(fireTex);
 const splatTexture = loader.load(splatEffect);
 
-
 //animation
+let GLOBAL_CONTROLS;
+let GLOBAL_MIXERS = [];
 let clock = new THREE.Clock();
 let MIXER;
 let clipAction;
@@ -88,11 +82,11 @@ window.addEventListener('keydown', e => {input[e.key] = true;});
 window.addEventListener('keyup', e => {input[e.key] = false;});
 
 const platformGeometries = generatePlatformGeometries(8);
-const platformMaterial = new THREE.MeshStandardMaterial({ color: "red" });
+const platformMaterial = new THREE.MeshStandardMaterial({ color: "blue" });
 
 const towerGroup = new THREE.Group();
 const towerGeometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
-const towerMaterial = new THREE.MeshStandardMaterial({color: new THREE.Color().setRGB( 39,224,245)});
+const towerMaterial = new THREE.MeshStandardMaterial({color: new THREE.Color('lightblue')});
 const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial);
 towerMesh.castShadow = true;
 towerMesh.receiveShadow = true;
@@ -103,6 +97,9 @@ const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 
 const platformGroupTwo = createPlatformGroup(platformGeometries, platformMaterial, 24);
 const platformGroupThree = createPlatformGroup(platformGeometries, platformMaterial, 36);
 platformGroup.children[0].visible = false; //hide one platform to create a gap
+platformGroupTwo.children[0].visible = false;
+platformGroupThree.children[0].visible = false;
+
 towerGroup.add(platformGroup);
 towerGroup.add(platformGroupTwo);
 towerGroup.add(platformGroupThree);
@@ -122,6 +119,7 @@ function debugScene() {
     camera.position.set(0, 15, 50);
     camera.lookAt(-7.5, 10, 0);
     const controls = new OrbitControls(camera, renderer.domElement);
+    GLOBAL_CONTROLS = controls;
     console.log('Debug scene initialized.');
     scene.add(towerGroup);
 
@@ -144,11 +142,9 @@ function debugScene() {
         }
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
-        updateScoreUI();
-        if (fireEffect && fireEffect.update) {
-            fireEffect.update(delta);
-        }
         if (MIXER) MIXER.update(delta);
+        updateScoreUI();
+        GLOBAL_MIXERS.forEach(mixer => mixer.update(delta));
         renderer.shadowMap.enabled = true;
         renderer.render(scene, camera);
         controls.update();
@@ -220,6 +216,29 @@ function createSplat(position, scene) {
     setTimeout(() => scene.remove(splat), 5000); // optional fade out
 }
 
+function createFireEffect(parentModel) {
+    const glbLoader = new GLTFLoader();
+    glbLoader.load(fireEffect, (gltf) => {
+        const fireModel = gltf.scene;
+        fireModel.traverse((child) => {
+            if (child.isMesh) {
+                child.receiveShadow = false;
+                child.castShadow = false;
+            }
+        });
+        fireModel.position.y = 1.5;
+        fireModel.scale.set(3.0, 3.0, 3.0);
+        parentModel.add(fireModel);
+        if (gltf.animations && gltf.animations.length > 0) {
+            const fireMixer = new THREE.AnimationMixer(fireModel);
+            gltf.animations.forEach((clip) => {
+                fireMixer.clipAction(clip).play();
+            });
+            GLOBAL_MIXERS.push(fireMixer);
+        }
+    });
+}
+
 function getBall(scene) {
     const glbLoader = new GLTFLoader();
     glbLoader.load(ballModel, (gltf) => {
@@ -231,18 +250,13 @@ function getBall(scene) {
                 child.receiveShadow = true;
             }
         });
-        fireEffect = getParticleSystem({
-            GLOBAL_CAMERA,
-            emitter: model,
-            parent: scene,
-            rate: 10,
-            texture: './images/fire.png',
-        });
+        createFireEffect(model);
         if (gltf.animations && gltf.animations.length > 0) {
             MIXER = new THREE.AnimationMixer(model);
+            GLOBAL_MIXERS.push(MIXER);
             gltf.animations.forEach((clip) => {
                 const action = MIXER.clipAction(clip);
-                action.play(); //for scene clips its Sphere|SphereAction
+                action.play();
                 clipAction = action;
                 CLIP = action.getClip();
                 if (MIXER) {
@@ -255,19 +269,21 @@ function getBall(scene) {
                 }
             });
         }
-        console.log(MIXER);
         scene.add(model);
     });
 }
 
-
 function basicSetup() {
     const scene = new THREE.Scene();
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     GLOBAL_SCENE = scene; //set to black default background
+    scene.background = new THREE.Color('green');
     GLOBAL_CAMERA = perspectiveCamera;
     GLOBAL_RENDERER = renderer;
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     getBall(scene);
@@ -283,14 +299,17 @@ function setupLights(scene) {
 
     sun.position.set(10, 20, 10);
     sun.castShadow = true;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.02;
+    sun.shadow.mapSize.set(4096, 4096);
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 100;
     sun.shadow.camera.left = -20;
     sun.shadow.camera.right = 20;
     sun.shadow.camera.top = 20;
     sun.shadow.camera.bottom = -20;
-    sun.shadow.mapSize.width = 2048;
-    sun.shadow.mapSize.height = 2048;
+    sun.shadow.mapSize.width = 4096;
+    sun.shadow.mapSize.height = 4096;
     scene.add(sun);
 }
 
@@ -321,8 +340,6 @@ function generatePlatformGeometries(count) {
     }
     return geometries;
 }
-
-
 
 // -- gui section --
 function updateScoreUI() {
@@ -355,26 +372,26 @@ window.addEventListener("DOMContentLoaded", () => {
 //levels
 window.addEventListener("DOMContentLoaded", () => {
     document.getElementById("LevelOne").addEventListener("click", () => {
-        background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER);
+        GLOBAL_CAMERA = perspectiveCamera;
+        background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
         sun.intensity = 0.8;
         towerGeometry.height = towerHeight.levelOne;
-        GLOBAL_CAMERA = perspectiveCamera;
     });
 
     document.getElementById("LevelTwo").addEventListener("click", () => {
-        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER);
+        GLOBAL_CAMERA = orthographicCamera;
+        console.log(GLOBAL_CAMERA);
+        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
+        console.log(GLOBAL_CAMERA);
         sun.intensity = 1.2;
         towerGeometry.height = towerHeight.levelTwo;
-        GLOBAL_CAMERA = orthographicCamera;
     });
 
     document.getElementById("LevelThree").addEventListener("click", () => {
-        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER);
+        GLOBAL_CAMERA = orthographicCamera;
+        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER,GLOBAL_CONTROLS);
         sun.intensity = 4;
         towerGeometry.height = towerHeight.levelThree;
-        GLOBAL_CAMERA = orthographicCamera;
     });
 })
-
-
 export { debugScene };
