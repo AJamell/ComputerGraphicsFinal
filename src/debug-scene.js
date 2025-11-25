@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import ballModel from "./models/bouncing_ball.glb";
 import { levelThreeBackground, levelTwoBackground, levelOneBackground } from './background/background.js';
@@ -70,7 +69,6 @@ const loader = new THREE.TextureLoader();
 const splatTexture = loader.load(splatEffect);
 
 //animation
-let GLOBAL_CONTROLS;
 let GLOBAL_MIXERS = [];
 let clock = new THREE.Clock();
 let MIXER;
@@ -119,9 +117,7 @@ function debugScene() {
     }
     camera.position.set(0, 15, 50);
     camera.lookAt(-7.5, 10, 0);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    GLOBAL_CONTROLS = controls;
-    console.log('Debug scene initialized.');
+    // console.log('Debug scene initialized.');
     scene.add(towerGroup);
 
     function animate() {
@@ -149,14 +145,12 @@ function debugScene() {
             updateScoreUI();
             GLOBAL_MIXERS.forEach(mixer => mixer.update(delta));
             renderer.shadowMap.enabled = true;
-            controls.update();
             document.getElementById("ballInformation").innerText = `Animation Progress: ${clipAction ? (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2) : 'N/A'}`;
         } else {
             clock.getDelta();
-            controls.update();
         }
 
-        renderer.render(scene, camera);
+        renderer.render(scene, GLOBAL_CAMERA);
     }
     animate();
 }
@@ -350,7 +344,7 @@ function generatePlatformGeometries(count) {
     return geometries;
 }
 
-// -- gui section --
+
 function updateScoreUI() {
     const userScore = document.getElementById("score");
     if (userScore) userScore.innerText = `Score: ${score}`;
@@ -370,31 +364,42 @@ function selectLevel(level) {
     }
 }
 
+
 function applyLevelSetup(level) {
     if (level === 1) {
         GLOBAL_CAMERA = perspectiveCamera;
-        background.levelOneBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
+        const targetPoint = new THREE.Vector3(0, 10, 0);
+        GLOBAL_CAMERA.position.set(20, 50, -40);
+        GLOBAL_CAMERA.lookAt(targetPoint);
+        background.levelOneBackground(GLOBAL_SCENE, GLOBAL_RENDERER);
         sun.intensity = 0.8;
         towerMesh.geometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
+
     } else if (level === 2) {
-        GLOBAL_CAMERA = orthographicCamera;
-        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_CAMERA, GLOBAL_RENDERER, GLOBAL_CONTROLS);
+        GLOBAL_CAMERA = perspectiveCamera;
+        const targetPoint = new THREE.Vector3(-7.5, 10, 0); // Tower position
+        GLOBAL_CAMERA.position.set(30, 50, -20);
+        GLOBAL_CAMERA.lookAt(targetPoint);
+        GLOBAL_CAMERA.updateProjectionMatrix();
+        background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_RENDERER);
         sun.intensity = 1.2;
         towerMesh.geometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelTwo, 32);
+
     } else if (level === 3) {
-        GLOBAL_CAMERA = orthographicCamera;
-        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_CAMERA,GLOBAL_RENDERER,GLOBAL_CONTROLS);
+        GLOBAL_CAMERA = perspectiveCamera;
+        const targetPoint = new THREE.Vector3(0, 30, -30);
+        GLOBAL_CAMERA.position.set(10, 50, 55);
+        GLOBAL_CAMERA.lookAt(targetPoint);
+        //GLOBAL_CAMERA.zoom = 0.25;
+        GLOBAL_CAMERA.updateProjectionMatrix();
+        background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_RENDERER);
         sun.intensity = 4;
         towerMesh.geometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelThree, 32);
     }
-    if (GLOBAL_CONTROLS) {
-        GLOBAL_CONTROLS.object = GLOBAL_CAMERA;
-        GLOBAL_CONTROLS.enabled = true;
-        GLOBAL_CAMERA.updateProjectionMatrix();
-    }
 }
 
-//play and reset
+
+//GUI
 window.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("playButton").addEventListener("click", () => { // 👈 CHANGED ID from "play" to "playButton"

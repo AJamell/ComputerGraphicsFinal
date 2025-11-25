@@ -28,7 +28,7 @@ function removeCurrentModel(scene) {
     currentBackgroundModel = null;
 }
 
-export function levelOneBackground(scene, camera, renderer, controls) {
+export function levelOneBackground(scene, renderer) {
     removeCurrentModel(scene);
     scene.background = new THREE.Color("#87CEFA");
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -43,24 +43,18 @@ export function levelOneBackground(scene, camera, renderer, controls) {
             model.receiveShadow = true;
             scene.add(model);
             currentBackgroundModel = model;
-            const targetPoint = new THREE.Vector3(-7.5, 10, 0);
-            camera.position.set(50, 15, 0);
-            camera.lookAt(targetPoint);
-            controls.target.copy(targetPoint);
-            controls.enabled = false;
-            controls.update();
-
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
     );
 }
 
-export function levelTwoBackground(scene, camera, renderer, controls) {
+export function levelTwoBackground(scene, renderer) {
     removeCurrentModel(scene);
     scene.background = new THREE.Color("skyblue");
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
     loader.load(
         marioAirport,
         (gltf) => {
@@ -71,23 +65,18 @@ export function levelTwoBackground(scene, camera, renderer, controls) {
             model.receiveShadow = true;
             scene.add(model);
             currentBackgroundModel = model;
-            controls.enabled = false;
-            camera.position.set(200, 100, 200);
-            const targetPoint = new THREE.Vector3(0, 0, 0);
-            camera.lookAt(targetPoint);
-            controls.target.copy(targetPoint);
-            controls.update();
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
     );
 }
 
-export function levelThreeBackground(scene, camera, renderer, controls) {
+export function levelThreeBackground(scene,renderer) {
     removeCurrentModel(scene);
     scene.background = new THREE.Color("#1A0A0A"); // dark red mist
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.8;
+    renderer.shadowMap.enabled = true;
     loader.load(
         bowserMap,
         (gltf) => {
@@ -98,12 +87,6 @@ export function levelThreeBackground(scene, camera, renderer, controls) {
             model.receiveShadow = true;
             scene.add(model);
             currentBackgroundModel = model;
-            controls.enabled = false;
-            camera.position.set(0, -100, 0);
-            const targetPoint = new THREE.Vector3(0, 10, 0);
-            camera.lookAt(targetPoint);
-            controls.target.copy(targetPoint);
-            controls.update();
         },
         () => {},
         (err) => console.error("GLB Load Error:", err)
