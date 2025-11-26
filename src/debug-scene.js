@@ -16,6 +16,10 @@ const PLATFORM_SIZE = { radius: 10, height: 1 };
 let score = 0;
 let currentLevel = 1;
 let isPlaying = false;
+let towerRotation = 0;
+let currSectionIndex = 0;
+let animationProgress = 0;
+
 
 //background
 const background = {levelOneBackground, levelTwoBackground, levelThreeBackground};
@@ -66,7 +70,9 @@ const ballMaterial = new THREE.MeshStandardMaterial({
 
 //fire + splat
 const loader = new THREE.TextureLoader();
-const splatTexture = loader.load(splatEffect);
+const splatTexture = loader.load(splatEffect)
+const platformSections = 8;
+const radPerSection = (2 * Math.PI) / platformSections;
 
 //animation
 let GLOBAL_MIXERS = [];
@@ -80,7 +86,7 @@ const input = {};
 window.addEventListener('keydown', e => {input[e.key] = true;});
 window.addEventListener('keyup', e => {input[e.key] = false;});
 
-const platformGeometries = generatePlatformGeometries(8);
+const platformGeometries = generatePlatformGeometries(platformSections);
 const platformMaterial = new THREE.MeshStandardMaterial({ color: "blue" });
 
 const towerGroup = new THREE.Group();
@@ -115,29 +121,62 @@ function debugScene() {
         const platform = createPlatform(PLATFORM_SIZE.radius, PLATFORM_SIZE.height, 0xCCCDC6);
         scene.add(platform);
     }
-    camera.position.set(0, 15, 50);
-    camera.lookAt(-7.5, 10, 0);
+
+    towerRotation = Math.PI / platformSections; // ensures ball starts centered over a section
+    towerGroup.rotation.y = towerRotation;
+
+    camera.position.set(20, 2, 0);
+    camera.lookAt(0, 0, 0);
     // console.log('Debug scene initialized.');
     scene.add(towerGroup);
+
+    // setup left and right raycasters 
+    const leftRaycaster = new THREE.Raycaster();
+    const rightRaycaster = new THREE.Raycaster();
+    const downDirection = new THREE.Vector3(0, -1, 0);
+    leftRaycaster.ray.direction.copy(downDirection);
+    leftRaycaster.ray.origin.set(0, 1, 1); // adjust position
+    rightRaycaster.ray.direction.copy(downDirection);
+    rightRaycaster.ray.origin.set(0, 1, -1); // adjust position
+
+    // add helpers
+
+    const leftHelper = new THREE.ArrowHelper(leftRaycaster.ray.direction, leftRaycaster.ray.origin, 5, 0xff0000);
+    const rightHelper = new THREE.ArrowHelper(rightRaycaster.ray.direction, rightRaycaster.ray.origin, 5, 0x0000ff);
+    scene.add(leftHelper);
+    scene.add(rightHelper);
+
+    const collisionMeshGroup = createPlatformGroup(platformGeometries, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }), 0);
+    collisionMeshGroup.position.x = -7.5; //slightly above ground to avoid z-fighting
+    collisionMeshGroup.visible = false; //hide collision meshes
+    scene.add(collisionMeshGroup);
+    collisionMeshGroup.rotation.y = towerRotation;
 
     function animate() {
         requestAnimationFrame(animate);
         if (isPlaying) {
             if (input['a']) {
-                towerGroup.rotation.y += 0.07;
-                towerGroup.rotation.y %= (2 * Math.PI);
-                if (towerGroup.rotation.y < 0) {
-                    towerGroup.rotation.y += 2 * Math.PI;
-                }
-                // console.log(towerGroup.rotation.y % (2 * Math.PI)); // Keeping original console logs
+                towerRotation += 0.07;
+                towerRotation %= (2 * Math.PI);
+                towerGroup.rotation.y = towerRotation;
+                collisionMeshGroup.rotation.y = towerRotation;
             }
             if (input['d']) {
-                towerGroup.rotation.y -= 0.07;
-                towerGroup.rotation.y %= (2 * Math.PI);
-                if (towerGroup.rotation.y < 0) {
-                    towerGroup.rotation.y += 2 * Math.PI;
+                towerRotation -= 0.07;
+                towerRotation %= (2 * Math.PI);
+                if (towerRotation < 0) {
+                    towerRotation += 2 * Math.PI;
                 }
-                // console.log(towerGroup.rotation.y % (2 * Math.PI)); // Keeping original console logs
+                towerGroup.rotation.y = towerRotation;
+                collisionMeshGroup.rotation.y = towerRotation;
+            }
+            currSectionIndex = Math.floor(towerRotation / radPerSection);
+            console.log(`Current Section Index: ${currSectionIndex}`);
+
+            if (clipAction) animationProgress = (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2);
+
+            if (animationProgress >= 0.97) {
+                findPlatformCollision(currSectionIndex);
             }
 
             const delta = clock.getDelta();
@@ -145,7 +184,7 @@ function debugScene() {
             updateScoreUI();
             GLOBAL_MIXERS.forEach(mixer => mixer.update(delta));
             renderer.shadowMap.enabled = true;
-            document.getElementById("ballInformation").innerText = `Animation Progress: ${clipAction ? (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2) : 'N/A'}`;
+            document.getElementById("ballInformation").innerText = `Animation Progress: ${animationProgress}`;
         } else {
             clock.getDelta();
         }
@@ -153,6 +192,18 @@ function debugScene() {
         renderer.render(scene, GLOBAL_CAMERA);
     }
     animate();
+
+    function findPlatformCollision(currentIndex) {
+        // get meshes that arent current index from collision group
+        const collisionMeshes = collisionMeshGroup.children.filter((_, index) => index !== currentIndex);
+
+        // check left and right raycasters against these meshes
+        const leftIntersections = leftRaycaster.intersectObjects(collisionMeshes, true);
+        const rightIntersections = rightRaycaster.intersectObjects(collisionMeshes, true);
+
+        console.log('Left Intersections:', leftIntersections.length);
+        console.log('Right Intersections:', rightIntersections.length);
+    }
 }
 
 function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.height * 2) {
