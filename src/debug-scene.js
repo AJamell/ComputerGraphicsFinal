@@ -17,8 +17,6 @@ let score = 0;
 let currentLevel = 1;
 let isPlaying = false;
 let towerRotation = 0;
-let currSectionIndex = 0;
-let animationProgress = 0;
 
 
 //background
@@ -30,8 +28,6 @@ let GLOBAL_SCENE;
 let GLOBAL_CAMERA;
 let GLOBAL_RENDERER;
 
-//tower
-const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
 
 //materials
 // const lightBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x27E0F5 });
@@ -41,16 +37,7 @@ const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
 const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
 
 //cameras
-const aspect = window.innerWidth / window.innerHeight;
-const viewSize = 30;
-const orthographicCamera = new THREE.OrthographicCamera(
-    -viewSize * aspect / 2, // left
-    viewSize * aspect / 2, // right
-    viewSize / 2, // top
-    -viewSize / 2,// bottom
-    0.1,// near
-    1000 // far
-);
+const ASPECT_RATIO = window.innerWidth / window.innerHeight;
 const perspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 //sounds
@@ -80,15 +67,26 @@ let clock = new THREE.Clock();
 let MIXER;
 let clipAction;
 let CLIP;
+let animationProgress = 0;
 
 //input
 const input = {};
 window.addEventListener('keydown', e => {input[e.key] = true;});
 window.addEventListener('keyup', e => {input[e.key] = false;});
 
+// platforms
 const platformGeometries = generatePlatformGeometries(platformSections);
 const platformMaterial = new THREE.MeshStandardMaterial({ color: "blue" });
+const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
+const platformGroupTwo = createPlatformGroup(platformGeometries, platformMaterial, 24);
+const platformGroupThree = createPlatformGroup(platformGeometries, platformMaterial, 36);
+platformGroup.children[0].visible = false; //hide one platform to create a gap
+platformGroupTwo.children[0].visible = false;
+platformGroupThree.children[0].visible = false;
 
+//tower
+const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
+let currSectionIndex = 0;
 const towerGroup = new THREE.Group();
 const towerGeometry = new THREE.CylinderGeometry(2, 2, towerHeight.levelOne, 32);
 const towerMaterial = new THREE.MeshStandardMaterial({color: new THREE.Color('lightblue')});
@@ -98,18 +96,16 @@ towerMesh.receiveShadow = true;
 towerGroup.add(towerMesh);
 towerMesh.position.y = 10;
 
-const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
-const platformGroupTwo = createPlatformGroup(platformGeometries, platformMaterial, 24);
-const platformGroupThree = createPlatformGroup(platformGeometries, platformMaterial, 36);
-platformGroup.children[0].visible = false; //hide one platform to create a gap
-platformGroupTwo.children[0].visible = false;
-platformGroupThree.children[0].visible = false;
-
+// basic platforms added to tower
 towerGroup.add(platformGroup);
 towerGroup.add(platformGroupTwo);
 towerGroup.add(platformGroupThree);
 towerGroup.position.x = -7.5;
 
+
+/**
+ * Sets up and runs the debug scene for testing platform collisions and raycasting.
+ */
 function debugScene() {
     const { scene, perspectiveCamera: camera, renderer } = basicSetup();
     setupLights(scene);
@@ -206,6 +202,24 @@ function debugScene() {
     }
 }
 
+/**
+ * Handles window resizing to maintain aspect ratio and renderer size.
+ */
+window.addEventListener('resize', () => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    GLOBAL_RENDERER.setSize(width, height);
+    GLOBAL_CAMERA.aspect = width / height;
+    GLOBAL_CAMERA.updateProjectionMatrix();
+});
+
+/**
+ * Creates a group of platform meshes from given geometries and material.
+ * @param {*} geometries set of geometries for the platforms
+ * @param {*} material material for the platforms
+ * @param {*} yPosition vertical position of the platforms
+ * @returns 
+ */
 function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.height * 2) {
     const platformGroupNormal = new THREE.Group();
     geometries.forEach((geometry) => {
@@ -218,6 +232,13 @@ function createPlatformGroup(geometries, material, yPosition = PLATFORM_SIZE.hei
     return platformGroupNormal;
 }
 
+/**
+ * Creates a single base platform mesh with given radius, height, and color.
+ * @param {number} radius radius of the platform
+ * @param {number} height height of the platform
+ * @param {number} color color of the platform
+ * @returns {THREE.Mesh} the created platform mesh
+ */
 function createPlatform(radius, height, color) {
     const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
     const material = new THREE.MeshStandardMaterial({ color: color });
@@ -226,6 +247,10 @@ function createPlatform(radius, height, color) {
     return cylinder;
 }
 
+
+/**
+ * Loads the background sound for the scene.
+ */
 function loadBackgroundSound() {
     audioLoader.load(bossAudio, function (buffer) {
         backgroundSound.setBuffer(buffer);
@@ -234,6 +259,10 @@ function loadBackgroundSound() {
     });
 }
 
+
+/**
+ * Loads the landing sound for the scene.
+ */
 function loadLandingSound() {
     audioLoader.load(landingSoundFile, function (buffer) {
         landingSound.setBuffer(buffer);
@@ -242,6 +271,10 @@ function loadLandingSound() {
     });
 }
 
+
+/**
+ * Plays the landing sound effect if sound effects are enabled and the game is in play.
+ */
 function playLandingSound() {
     if (soundEffectsEnabled && isPlaying) {
         if (landingSound.isPlaying) {
@@ -251,6 +284,12 @@ function playLandingSound() {
     }
 }
 
+
+/**
+ * Creates a splat effect at the given position in the scene.
+ * @param {*} position position to place the splat
+ * @param {*} scene scene to add the splat to
+ */
 function createSplat(position, scene) {
     const geometry = new THREE.PlaneGeometry(3, 3);
     const ballColors = [ballLightBlueSplat.color, ballDarkBlueSplat.color]
@@ -269,6 +308,11 @@ function createSplat(position, scene) {
     setTimeout(() => scene.remove(splat), 5000); // optional fade out
 }
 
+
+/**
+ * Creates a fire effect and attaches it to the given parent model.
+ * @param {*} parentModel the model to attach the fire effect to
+ */
 function createFireEffect(parentModel) {
     const glbLoader = new GLTFLoader();
     glbLoader.load(fireEffect, (gltf) => {
@@ -292,6 +336,11 @@ function createFireEffect(parentModel) {
     });
 }
 
+
+/**
+ * Loads and returns the ball model with animations and fire effect.
+ * @param {*} scene scene to add the ball to
+ */
 function getBall(scene) {
     const glbLoader = new GLTFLoader();
     glbLoader.load(ballModel, (gltf) => {
@@ -327,6 +376,11 @@ function getBall(scene) {
     });
 }
 
+
+/**
+ * Sets up the basic scene, camera, and renderer.
+ * @returns {Object} An object containing the scene, camera, and renderer.
+ */
 function basicSetup() {
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -347,6 +401,11 @@ function basicSetup() {
     return { scene, perspectiveCamera, renderer };
 }
 
+
+/**
+ * Sets up lighting for the scene.
+ * @param {*} scene the scene to add lights to
+ */
 function setupLights(scene) {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
@@ -367,6 +426,12 @@ function setupLights(scene) {
     scene.add(sun);
 }
 
+
+/**
+ * Generates platform geometries arranged in a circular pattern.
+ * @param {*} count natural number
+ * @returns {Array} array of platform geometries
+ */
 function generatePlatformGeometries(count) {
     const geometries = [];
     const thetaLength = (2 * Math.PI) / count;
@@ -396,11 +461,19 @@ function generatePlatformGeometries(count) {
 }
 
 
+/**
+ * Updates the score display in the UI.
+ */
 function updateScoreUI() {
     const userScore = document.getElementById("score");
     if (userScore) userScore.innerText = `Score: ${score}`;
 }
 
+
+/**
+ * Selects the current level and updates the UI accordingly.
+ * @param {*} level the level to select
+ */
 function selectLevel(level) {
     currentLevel = level;
     ['LevelOne', 'LevelTwo', 'LevelThree'].forEach(id => {
@@ -416,6 +489,10 @@ function selectLevel(level) {
 }
 
 
+/**
+ * Applies the setup for the specified level.
+ * @param {*} level the level to set up
+ */
 function applyLevelSetup(level) {
     if (level === 1) {
         GLOBAL_CAMERA = perspectiveCamera;
