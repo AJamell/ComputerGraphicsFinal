@@ -77,12 +77,6 @@ window.addEventListener('keyup', e => {input[e.key] = false;});
 // platforms
 const platformGeometries = generatePlatformGeometries(platformSections);
 const platformMaterial = new THREE.MeshStandardMaterial({ color: "blue" });
-const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, 12);
-const platformGroupTwo = createPlatformGroup(platformGeometries, platformMaterial, 24);
-const platformGroupThree = createPlatformGroup(platformGeometries, platformMaterial, 36);
-platformGroup.children[0].visible = false; //hide one platform to create a gap
-platformGroupTwo.children[0].visible = false;
-platformGroupThree.children[0].visible = false;
 
 //tower
 const towerHeight = {levelOne: 1000, levelTwo: 1000, levelThree: 1000};
@@ -97,11 +91,7 @@ towerGroup.add(towerMesh);
 towerMesh.position.y = 10;
 
 // basic platforms added to tower
-towerGroup.add(platformGroup);
-towerGroup.add(platformGroupTwo);
-towerGroup.add(platformGroupThree);
 towerGroup.position.x = -7.5;
-
 
 /**
  * Sets up and runs the debug scene for testing platform collisions and raycasting.
@@ -118,6 +108,29 @@ function debugScene() {
         scene.add(platform);
     }
 
+    const platformConfig = {
+        lightBlue: {
+            material: new THREE.MeshStandardMaterial({ color: 0x27E0F5 }),
+            indices: [0, 3, 6]
+        },
+        killField: {
+            material: new THREE.MeshStandardMaterial({ color: 0xAD1F1F }),
+            indices: [1, 4, 7]
+        },
+        darkBlue: {
+            material: new THREE.MeshStandardMaterial({ color: 0x1F32AD }),
+            indices: [2, 5]
+        }
+    };
+
+    for (let i = 0; i < 5; i++) {
+        const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
+        setMaterialsForPlatform(platformGroup, platformConfig);
+        platformGroup.children[0].visible = false; //hide first slice to create gap
+        towerGroup.add(platformGroup);
+    }
+
+
     towerRotation = Math.PI / platformSections; // ensures ball starts centered over a section
     towerGroup.rotation.y = towerRotation;
 
@@ -125,6 +138,7 @@ function debugScene() {
     camera.lookAt(0, 0, 0);
     // console.log('Debug scene initialized.');
     scene.add(towerGroup);
+    towerGroup.position.y =  0;
 
     // setup left and right raycasters 
     const leftRaycaster = new THREE.Raycaster();
@@ -166,13 +180,14 @@ function debugScene() {
                 towerGroup.rotation.y = towerRotation;
                 collisionMeshGroup.rotation.y = towerRotation;
             }
+
             currSectionIndex = Math.floor(towerRotation / radPerSection);
             console.log(`Current Section Index: ${currSectionIndex}`);
 
             if (clipAction) animationProgress = (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2);
 
             if (animationProgress >= 0.97) {
-                findPlatformCollision(currSectionIndex);
+                const intersections = findPlatformCollision(currSectionIndex);
             }
 
             const delta = clock.getDelta();
@@ -197,8 +212,24 @@ function debugScene() {
         const leftIntersections = leftRaycaster.intersectObjects(collisionMeshes, true);
         const rightIntersections = rightRaycaster.intersectObjects(collisionMeshes, true);
 
-        console.log('Left Intersections:', leftIntersections.length);
-        console.log('Right Intersections:', rightIntersections.length);
+        return { left: leftIntersections.length, right: rightIntersections.length };
+    }
+    /**
+     * Applies a series of materials to different parts of a platform group
+     * @param {*} platFormGroup group of platforms
+     * @param {*} materialConfig {materialName: [material, indices: []]}
+     */
+    function setMaterialsForPlatform(platformGroup, materialConfig) {
+        const children = platformGroup.children;
+        for (const materialName in materialConfig) {
+            const { material, indices } = materialConfig[materialName];
+            indices.forEach((index) => {
+                if (children[index]) {
+                    children[index].material = material;
+                    children[index].userData.materialName = materialName;
+                }
+            });
+        }
     }
 }
 
@@ -497,7 +528,7 @@ function applyLevelSetup(level) {
     if (level === 1) {
         GLOBAL_CAMERA = perspectiveCamera;
         const targetPoint = new THREE.Vector3(0, 10, 0);
-        GLOBAL_CAMERA.position.set(20, 50, -40);
+        GLOBAL_CAMERA.position.set(20, 15, 20);
         GLOBAL_CAMERA.lookAt(targetPoint);
         background.levelOneBackground(GLOBAL_SCENE, GLOBAL_RENDERER);
         sun.intensity = 0.8;
