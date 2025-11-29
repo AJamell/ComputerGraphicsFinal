@@ -93,6 +93,24 @@ towerMesh.position.y = 10;
 // basic platforms added to tower
 towerGroup.position.x = -7.5;
 
+
+// setup left and right raycasters 
+const leftRaycaster = new THREE.Raycaster();
+const rightRaycaster = new THREE.Raycaster();
+const downDirection = new THREE.Vector3(0, -1, 0);
+leftRaycaster.ray.direction.copy(downDirection);
+leftRaycaster.ray.origin.set(0, 1, 1); // adjust position
+rightRaycaster.ray.direction.copy(downDirection);
+rightRaycaster.ray.origin.set(0, 1, -1); // adjust position
+
+
+
+const collisionMeshGroup = createPlatformGroup(platformGeometries, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }), 0);
+collisionMeshGroup.position.x = -7.5; //slightly above ground to avoid z-fighting
+collisionMeshGroup.visible = false; //hide collision meshes
+towerRotation = Math.PI / platformSections; // ensures ball starts centered over a section
+collisionMeshGroup.rotation.y = towerRotation;
+
 /**
  * Sets up and runs the debug scene for testing platform collisions and raycasting.
  */
@@ -130,8 +148,9 @@ function debugScene() {
         towerGroup.add(platformGroup);
     }
 
+    scene.add(collisionMeshGroup);
 
-    towerRotation = Math.PI / platformSections; // ensures ball starts centered over a section
+
     towerGroup.rotation.y = towerRotation;
 
     camera.position.set(20, 2, 0);
@@ -140,100 +159,96 @@ function debugScene() {
     scene.add(towerGroup);
     towerGroup.position.y =  0;
 
-    // setup left and right raycasters 
-    const leftRaycaster = new THREE.Raycaster();
-    const rightRaycaster = new THREE.Raycaster();
-    const downDirection = new THREE.Vector3(0, -1, 0);
-    leftRaycaster.ray.direction.copy(downDirection);
-    leftRaycaster.ray.origin.set(0, 1, 1); // adjust position
-    rightRaycaster.ray.direction.copy(downDirection);
-    rightRaycaster.ray.origin.set(0, 1, -1); // adjust position
-
-    // add helpers
-
-    const leftHelper = new THREE.ArrowHelper(leftRaycaster.ray.direction, leftRaycaster.ray.origin, 5, 0xff0000);
-    const rightHelper = new THREE.ArrowHelper(rightRaycaster.ray.direction, rightRaycaster.ray.origin, 5, 0x0000ff);
-    scene.add(leftHelper);
-    scene.add(rightHelper);
-
-    const collisionMeshGroup = createPlatformGroup(platformGeometries, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }), 0);
-    collisionMeshGroup.position.x = -7.5; //slightly above ground to avoid z-fighting
-    collisionMeshGroup.visible = false; //hide collision meshes
-    scene.add(collisionMeshGroup);
-    collisionMeshGroup.rotation.y = towerRotation;
-
     function animate() {
         requestAnimationFrame(animate);
+
+        // convert from ms → seconds
+        const deltaTime = clock.getDelta();
+
         if (isPlaying) {
+            // tower rotation using deltaTime for consistent speed
+            const rotationSpeed = 4.0; // radians per second
+
             if (input['a']) {
-                towerRotation += 0.07;
+                towerRotation += rotationSpeed * deltaTime;
                 towerRotation %= (2 * Math.PI);
                 towerGroup.rotation.y = towerRotation;
                 collisionMeshGroup.rotation.y = towerRotation;
             }
+
             if (input['d']) {
-                towerRotation -= 0.07;
+                towerRotation -= rotationSpeed * deltaTime;
                 towerRotation %= (2 * Math.PI);
-                if (towerRotation < 0) {
-                    towerRotation += 2 * Math.PI;
-                }
+                if (towerRotation < 0) towerRotation += 2 * Math.PI;
                 towerGroup.rotation.y = towerRotation;
                 collisionMeshGroup.rotation.y = towerRotation;
             }
 
             currSectionIndex = Math.floor(towerRotation / radPerSection);
-            console.log(`Current Section Index: ${currSectionIndex}`);
 
-            if (clipAction) animationProgress = (clipAction.time % CLIP.duration / CLIP.duration).toFixed(2);
+            if (clipAction) {
+                animationProgress = (
+                    (clipAction.time % CLIP.duration) / CLIP.duration
+                ).toFixed(2);
+            }
 
             if (animationProgress >= 0.97) {
-                const intersections = findPlatformCollision(currSectionIndex);
-                // TODO replace this logic with way to ID empty platforms
-                if (intersections.left === 0 && intersections.right === 0 && currSectionIndex === 0) {
-                    liftObject(towerGroup);
-                }
-
+                processCollision();
             }
-            const delta = clock.getDelta();
-            if (MIXER) MIXER.update(delta);
+
+            // ⬇️ mixer now uses deltaTime passed in
+            if (MIXER) MIXER.update(deltaTime);
+            GLOBAL_MIXERS.forEach(m => m.update(deltaTime));
+
             updateScoreUI();
-            GLOBAL_MIXERS.forEach(mixer => mixer.update(delta));
             renderer.shadowMap.enabled = true;
-            document.getElementById("ballInformation").innerText = `Animation Progress: ${animationProgress}`;
-        } else {
-            clock.getDelta();
+
+            document.getElementById("ballInformation").innerText =
+                `Animation Progress: ${animationProgress}`;
         }
 
         renderer.render(scene, GLOBAL_CAMERA);
     }
     animate();
+}
 
-    function findPlatformCollision(currentIndex) {
-        // get meshes that arent current index from collision group
-        const collisionMeshes = collisionMeshGroup.children.filter((_, index) => index !== currentIndex);
-
-        // check left and right raycasters against these meshes
-        const leftIntersections = leftRaycaster.intersectObjects(collisionMeshes, true);
-        const rightIntersections = rightRaycaster.intersectObjects(collisionMeshes, true);
-
-        return { left: leftIntersections.length, right: rightIntersections.length };
+function processCollision() {
+    const intersections = findPlatformCollision(currSectionIndex);
+    if (intersections.left === 0 &&
+        intersections.right === 0 &&
+        currSectionIndex === 0) {
+        liftObject(towerGroup);
+    } else {
+        clipAction.play(); // resume animation if no lift
     }
-    /**
-     * Applies a series of materials to different parts of a platform group
-     * @param {*} platFormGroup group of platforms
-     * @param {*} materialConfig {materialName: [material, indices: []]}
-     */
-    function setMaterialsForPlatform(platformGroup, materialConfig) {
-        const children = platformGroup.children;
-        for (const materialName in materialConfig) {
-            const { material, indices } = materialConfig[materialName];
-            indices.forEach((index) => {
-                if (children[index]) {
-                    children[index].material = material;
-                    children[index].userData.materialName = materialName;
-                }
-            });
-        }
+}
+
+function findPlatformCollision(currentIndex) {
+    // get meshes that arent current index from collision group
+    const collisionMeshes = collisionMeshGroup.children.filter((_, index) => index !== currentIndex);
+
+    // check left and right raycasters against these meshes
+    const leftIntersections = leftRaycaster.intersectObjects(collisionMeshes, true);
+    const rightIntersections = rightRaycaster.intersectObjects(collisionMeshes, true);
+
+    return { left: leftIntersections.length, right: rightIntersections.length };
+}
+
+/**
+ * Applies a series of materials to different parts of a platform group
+ * @param {*} platFormGroup group of platforms
+ * @param {*} materialConfig {materialName: [material, indices: []]}
+ */
+function setMaterialsForPlatform(platformGroup, materialConfig) {
+    const children = platformGroup.children;
+    for (const materialName in materialConfig) {
+        const { material, indices } = materialConfig[materialName];
+        indices.forEach((index) => {
+            if (children[index]) {
+                children[index].material = material;
+                children[index].userData.materialName = materialName;
+            }
+        });
     }
 }
 
@@ -624,7 +639,7 @@ let liftInProgress = false;
 
 // Callbacks you can set from outside
 let onLiftStart = () => {clipAction.stop();};
-let onLiftEnd = () => {clipAction.play();};
+let onLiftEnd = () => {processCollision();};
 
 function liftObject(mesh) {
     if (liftInProgress) return Promise.resolve();
