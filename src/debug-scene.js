@@ -188,8 +188,12 @@ function debugScene() {
 
             if (animationProgress >= 0.97) {
                 const intersections = findPlatformCollision(currSectionIndex);
-            }
+                // TODO replace this logic with way to ID empty platforms
+                if (intersections.left === 0 && intersections.right === 0 && currSectionIndex === 0) {
+                    liftObject(towerGroup);
+                }
 
+            }
             const delta = clock.getDelta();
             if (MIXER) MIXER.update(delta);
             updateScoreUI();
@@ -391,6 +395,7 @@ function getBall(scene) {
                 const action = MIXER.clipAction(clip);
                 action.timeScale = 0.5;
                 action.play();
+                console.log(action);
                 clipAction = action;
                 CLIP = action.getClip();
                 if (MIXER) {
@@ -614,5 +619,50 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     selectLevel(currentLevel);
 })
+
+let liftInProgress = false;
+
+// Callbacks you can set from outside
+let onLiftStart = () => {clipAction.stop();};
+let onLiftEnd = () => {clipAction.play();};
+
+function liftObject(mesh) {
+    if (liftInProgress) return Promise.resolve();
+
+    liftInProgress = true;
+    onLiftStart();       // 🔥 pause the ball here
+
+    const ACCEL = 1000;   // upward acceleration
+    let velocity = 20;
+    const startY = mesh.position.y;
+    const targetY = startY + 12;
+
+    let lastTime = performance.now();
+
+    return new Promise(resolve => {
+        function animate() {
+            const now = performance.now();
+            const delta = (now - lastTime) / 1000;
+            lastTime = now;
+
+            velocity += ACCEL * delta;
+            mesh.position.y += velocity * delta;
+
+            if (mesh.position.y >= targetY) {
+                mesh.position.y = targetY;
+
+                liftInProgress = false;
+                onLiftEnd();   // 🔥 resume the ball here
+
+                resolve();
+                return;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    });
+}
 
 export { debugScene };
