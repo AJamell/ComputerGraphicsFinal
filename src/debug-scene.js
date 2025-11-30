@@ -8,8 +8,8 @@ import fireEffect from './models/fire.glb';
 import splatEffect from './models/splat.png';
 
 //platform setup
-const SHOW_AXES_HELPER = true;
-const SHOW_PLATFORMS = true;
+const SHOW_AXES_HELPER = false;
+const SHOW_PLATFORMS = false;
 const PLATFORM_SIZE = { radius: 10, height: 1 };
 
 //gui
@@ -30,14 +30,10 @@ let GLOBAL_RENDERER;
 
 
 //materials
-// const lightBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x27E0F5 });
-// const killFieldTowerSlice = new THREE.MeshStandardMaterial({ color:0xAD1F1F });
-// const darkBlueTowerSlice = new THREE.MeshStandardMaterial({ color:0x1F32AD });
 const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
 const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
 
 //cameras
-const ASPECT_RATIO = window.innerWidth / window.innerHeight;
 const perspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 //sounds
@@ -57,7 +53,10 @@ const ballMaterial = new THREE.MeshStandardMaterial({
 
 //fire + splat
 const loader = new THREE.TextureLoader();
-const splatTexture = loader.load(splatEffect)
+const splatTexture = loader.load(splatEffect);
+let fireModel = null;
+
+//platforms
 const platformSections = 8;
 const radPerSection = (2 * Math.PI) / platformSections;
 
@@ -89,6 +88,8 @@ towerMesh.castShadow = true;
 towerMesh.receiveShadow = true;
 towerGroup.add(towerMesh);
 towerMesh.position.y = 10;
+const platforms = [];
+let towerYDisplacement = 0;
 
 // basic platforms added to tower
 towerGroup.position.x = -7.5;
@@ -127,25 +128,25 @@ function debugScene() {
     }
 
     const platformConfig = {
-        lightBlue: {
-            material: new THREE.MeshStandardMaterial({ color: 0x27E0F5 }),
-            indices: [0, 3, 6]
-        },
-        killField: {
+        killfield: {
             material: new THREE.MeshStandardMaterial({ color: 0xAD1F1F }),
             indices: [1, 4, 7]
         },
-        darkBlue: {
+        solid: {
             material: new THREE.MeshStandardMaterial({ color: 0x1F32AD }),
-            indices: [2, 5]
+            indices: [2, 5, 3, 6]
+        },
+        empty: {
+            material: new THREE.MeshStandardMaterial({ color: 0x000000 }),
+            indices: [0]
         }
     };
 
     for (let i = 0; i < 5; i++) {
         const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
         setMaterialsForPlatform(platformGroup, platformConfig);
-        platformGroup.children[0].visible = false; //hide first slice to create gap
         towerGroup.add(platformGroup);
+        platforms.push(platformGroup);
     }
 
     scene.add(collisionMeshGroup);
@@ -155,7 +156,6 @@ function debugScene() {
 
     camera.position.set(20, 2, 0);
     camera.lookAt(0, 0, 0);
-    // console.log('Debug scene initialized.');
     scene.add(towerGroup);
     towerGroup.position.y =  0;
 
@@ -196,7 +196,7 @@ function debugScene() {
                 processCollision();
             }
 
-            // ⬇️ mixer now uses deltaTime passed in
+            // mixer now uses deltaTime passed in
             if (MIXER) MIXER.update(deltaTime);
             GLOBAL_MIXERS.forEach(m => m.update(deltaTime));
 
@@ -213,13 +213,40 @@ function debugScene() {
 }
 
 function processCollision() {
+    const currentPlatform = platforms[towerYDisplacement / 12];
+    if (!currentPlatform) return;
+
     const intersections = findPlatformCollision(currSectionIndex);
-    if (intersections.left === 0 &&
-        intersections.right === 0 &&
-        currSectionIndex === 0) {
-        liftObject(towerGroup);
+    const currSectionIsEmpty = currentPlatform.children[currSectionIndex].userData.materialName.toLowerCase() === "empty";
+    let interactionType = "";
+    if ((intersections.left === 0 &&
+        intersections.right === 0) || !currSectionIsEmpty) {
+        interactionType = currentPlatform.children[currSectionIndex].userData.materialName;
+    } else if (intersections.left > 0) {
+        const leftIndex = currSectionIndex + 1 % platformSections;
+        interactionType = currentPlatform.children[leftIndex].userData.materialName;
+    } else if (intersections.right > 0) {
+        const rightIndex = (currSectionIndex - 1 + platformSections) % platformSections;
+        interactionType = currentPlatform.children[rightIndex].userData.materialName;
     } else {
-        clipAction.play(); // resume animation if no lift
+        return;
+    }
+    
+    switch (interactionType.toLowerCase()) {
+    case "killfield":
+        isPlaying = false;
+        clipAction.stop();
+        //TODO end game function call to reset state of game
+        document.getElementById("titleOverlay").classList.remove('hidden');
+        document.getElementById("playButton").style.display = 'block';
+        break;
+    case "solid":
+        fireModel.visible = false;
+        clipAction.play();
+        break;
+    case "empty":
+        liftObject(towerGroup);
+        break;
     }
 }
 
@@ -241,12 +268,17 @@ function findPlatformCollision(currentIndex) {
  */
 function setMaterialsForPlatform(platformGroup, materialConfig) {
     const children = platformGroup.children;
+    const indicesList = Object.values(materialConfig).flatMap(config => config.indices);
+    if (indicesList.length !== children.length) return;
     for (const materialName in materialConfig) {
         const { material, indices } = materialConfig[materialName];
         indices.forEach((index) => {
             if (children[index]) {
                 children[index].material = material;
                 children[index].userData.materialName = materialName;
+                if (materialName.toLowerCase() === "empty") {
+                    children[index].visible = false;
+                }
             }
         });
     }
@@ -366,7 +398,8 @@ function createSplat(position, scene) {
 function createFireEffect(parentModel) {
     const glbLoader = new GLTFLoader();
     glbLoader.load(fireEffect, (gltf) => {
-        const fireModel = gltf.scene;
+        fireModel = gltf.scene;
+        fireModel.visible = false;
         fireModel.traverse((child) => {
             if (child.isMesh) {
                 child.receiveShadow = false;
@@ -374,12 +407,14 @@ function createFireEffect(parentModel) {
             }
         });
         fireModel.position.y = 1.5;
-        fireModel.scale.set(3.0, 3.0, 3.0);
+        fireModel.scale.set(3.5, 3.5, 3.5);
         parentModel.add(fireModel);
         if (gltf.animations && gltf.animations.length > 0) {
             const fireMixer = new THREE.AnimationMixer(fireModel);
             gltf.animations.forEach((clip) => {
-                fireMixer.clipAction(clip).play();
+                const action = fireMixer.clipAction(clip);
+                action.timeScale = 5.0;
+                action.play();
             });
             GLOBAL_MIXERS.push(fireMixer);
         }
@@ -408,9 +443,9 @@ function getBall(scene) {
             GLOBAL_MIXERS.push(MIXER);
             gltf.animations.forEach((clip) => {
                 const action = MIXER.clipAction(clip);
-                action.timeScale = 0.5;
+                action.timeScale = 0.4;
+                action.time = 0.5;
                 action.play();
-                console.log(action);
                 clipAction = action;
                 CLIP = action.getClip();
                 if (MIXER) {
@@ -569,7 +604,6 @@ function applyLevelSetup(level) {
         const targetPoint = new THREE.Vector3(0, 30, -30);
         GLOBAL_CAMERA.position.set(10, 50, 55);
         GLOBAL_CAMERA.lookAt(targetPoint);
-        //GLOBAL_CAMERA.zoom = 0.25;
         GLOBAL_CAMERA.updateProjectionMatrix();
         background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_RENDERER);
         sun.intensity = 4;
@@ -581,7 +615,7 @@ function applyLevelSetup(level) {
 //GUI
 window.addEventListener("DOMContentLoaded", () => {
 
-    document.getElementById("playButton").addEventListener("click", () => { // 👈 CHANGED ID from "play" to "playButton"
+    document.getElementById("playButton").addEventListener("click", () => {
         if (!isPlaying) {
             applyLevelSetup(currentLevel);
             isPlaying = true;
@@ -638,19 +672,28 @@ window.addEventListener("DOMContentLoaded", () => {
 let liftInProgress = false;
 
 // Callbacks you can set from outside
-let onLiftStart = () => {clipAction.stop();};
+let onLiftStart = () => {
+    fireModel.visible = true;
+    clipAction.stop();
+};
 let onLiftEnd = () => {processCollision();};
 
+
+/**
+ * Lifts an object 12 units upward with acceleration.
+ * @param {*} mesh Mesh to lift
+ * @return {Promise} resolves when lift is complete
+ */
 function liftObject(mesh) {
     if (liftInProgress) return Promise.resolve();
 
     liftInProgress = true;
-    onLiftStart();       // 🔥 pause the ball here
+    onLiftStart();
 
-    const ACCEL = 1000;   // upward acceleration
-    let velocity = 20;
+    let velocity = 30;
     const startY = mesh.position.y;
     const targetY = startY + 12;
+    towerYDisplacement += 12;
 
     let lastTime = performance.now();
 
@@ -659,15 +702,13 @@ function liftObject(mesh) {
             const now = performance.now();
             const delta = (now - lastTime) / 1000;
             lastTime = now;
-
-            velocity += ACCEL * delta;
             mesh.position.y += velocity * delta;
 
             if (mesh.position.y >= targetY) {
                 mesh.position.y = targetY;
 
                 liftInProgress = false;
-                onLiftEnd();   // 🔥 resume the ball here
+                onLiftEnd();
 
                 resolve();
                 return;
