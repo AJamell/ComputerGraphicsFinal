@@ -32,6 +32,9 @@ let GLOBAL_RENDERER;
 //materials
 const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
 const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
+const killfieldMaterial = new THREE.MeshStandardMaterial({ color: 0xAD1F1F });
+const solidMaterial = new THREE.MeshStandardMaterial({ color: 0x1F32AD });
+const emptyMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
 //cameras
 const perspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -129,15 +132,15 @@ function debugScene() {
 
     const platformConfig = {
         killfield: {
-            material: new THREE.MeshStandardMaterial({ color: 0xAD1F1F }),
+            material: killfieldMaterial,
             indices: [1, 4, 7]
         },
         solid: {
-            material: new THREE.MeshStandardMaterial({ color: 0x1F32AD }),
+            material: solidMaterial,
             indices: [2, 5, 3, 6]
         },
         empty: {
-            material: new THREE.MeshStandardMaterial({ color: 0x000000 }),
+            material: emptyMaterial,
             indices: [0]
         }
     };
@@ -219,19 +222,19 @@ function processCollision() {
     const intersections = findPlatformCollision(currSectionIndex);
     const currSectionIsEmpty = currentPlatform.children[currSectionIndex].userData.materialName.toLowerCase() === "empty";
     let interactionType = "";
+    let interactionIndex = currSectionIndex;
     if ((intersections.left === 0 &&
         intersections.right === 0) || !currSectionIsEmpty) {
-        interactionType = currentPlatform.children[currSectionIndex].userData.materialName;
+        interactionIndex = currSectionIndex;
     } else if (intersections.left > 0) {
-        const leftIndex = currSectionIndex + 1 % platformSections;
-        interactionType = currentPlatform.children[leftIndex].userData.materialName;
+        interactionIndex = (currSectionIndex + 1) % platformSections;
     } else if (intersections.right > 0) {
-        const rightIndex = (currSectionIndex - 1 + platformSections) % platformSections;
-        interactionType = currentPlatform.children[rightIndex].userData.materialName;
+        interactionIndex = (currSectionIndex - 1 + platformSections) % platformSections;
     } else {
         return;
     }
-    
+    interactionType = currentPlatform.children[interactionIndex].userData.materialName;
+
     switch (interactionType.toLowerCase()) {
     case "killfield":
         isPlaying = false;
@@ -243,6 +246,11 @@ function processCollision() {
     case "solid":
         fireModel.visible = false;
         clipAction.play();
+        //
+        // setTimeout(() => {
+        //     currentPlatform.children[interactionIndex].material = killfieldMaterial;
+        //     currentPlatform.children[interactionIndex].userData.materialName = "killfield";
+        // }, 100);
         break;
     case "empty":
         liftObject(towerGroup);
