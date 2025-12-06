@@ -29,9 +29,8 @@ let GLOBAL_SCENE;
 let GLOBAL_CAMERA;
 let GLOBAL_RENDERER;
 
-
 //materials
-const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
+const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color: 0x1F68AD });
 const killfieldMaterial = new THREE.MeshStandardMaterial({ color: 0xAD1F1F });
 const solidMaterial = new THREE.MeshStandardMaterial({ color: 0x1F32AD });
 const emptyMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
@@ -226,9 +225,7 @@ function processCollision() {
 }
 
 function findPlatformCollision(currentIndex) {
-    // get meshes that arent current index from collision group
     const collisionMeshes = collisionMeshGroup.children.filter((_, index) => index !== currentIndex);
-    // check left and right raycasters against these meshes
     const leftIntersections = leftRaycaster.intersectObjects(collisionMeshes, true);
     const rightIntersections = rightRaycaster.intersectObjects(collisionMeshes, true);
     return { left: leftIntersections.length, right: rightIntersections.length };
@@ -341,26 +338,36 @@ function playLandingSound() {
 
 
 /**
- * Creates a splat effect at the given position in the scene.
- * @param {*} position position to place the splat
- * @param {*} scene scene to add the splat to
+ * Creates a splat effect and attaches it to a platform slice.
+ * @param ballWorldPosition - balls position
+ * @param {THREE.Group} platformGroup - The platform group to attach the splat to
+ * @param {number} sectionIndex - The index of the platform section
  */
-function createSplat(position, scene) {
+function createSplatOnPlatform(ballWorldPosition, platformGroup, sectionIndex) {
     const geometry = new THREE.PlaneGeometry(3, 3);
     const material = new THREE.MeshPhongMaterial({
         map: splatTexture,
-        normalMap:splatNormalEffect,
+        normalMap: splatNormalEffect,
         transparent: true,
-        depthWrite: false,
+        depthWrite: true,
         side: THREE.DoubleSide,
         color: ballDarkBlueSplat.color,
     });
     const splat = new THREE.Mesh(geometry, material);
-    splat.position.set(position.x, 0.01, position.z);
-    splat.rotation.x = -Math.PI / 2; // make it flat
-    splat.rotation.z = Math.random() * Math.PI * 2; // random spin each time
-    scene.add(splat);
-    setTimeout(() => scene.remove(splat), 5000); // optional fade out
+    splat.castShadow = false;
+    splat.receiveShadow = false;
+    splat.renderOrder = 1;
+    const targetSlice = platformGroup.children[sectionIndex];
+    const localPosition = targetSlice.worldToLocal(ballWorldPosition.clone());
+    splat.position.set(localPosition.x, localPosition.y + 0.20, localPosition.z + 0.55);
+    splat.rotation.x = -Math.PI / 2;
+    splat.rotation.z = Math.random() * Math.PI * 2;
+    targetSlice.add(splat);
+    setTimeout(() => {
+        if (targetSlice && splat.parent === targetSlice) {
+            targetSlice.remove(splat);
+        }
+    }, 5000);
 }
 
 
@@ -423,8 +430,12 @@ function getBall(scene) {
                 CLIP = action.getClip();
                 if (MIXER) {
                     MIXER.addEventListener("loop", () => {
-                        const pos = model.position.clone();
-                        createSplat(pos, scene);
+                        const ballWorldPos = model.position.clone();
+                        const currentPlatformIndex = Math.floor(towerYDisplacement / 12);
+                        const currentPlatform = platforms[currentPlatformIndex];
+                        if (currentPlatform) {
+                            createSplatOnPlatform(ballWorldPos, currentPlatform, currSectionIndex);
+                        }
                         playLandingSound();
                     });
                 }
@@ -578,34 +589,6 @@ function clearPlatforms() {
     collisionMeshGroup.children.length = 0;
 }
 
-// /**
-//  * Generates the platform groups and collision meshes for the current level.
-//  */
-// function generateLevel() {
-//     clearPlatforms();
-//     const platformConfig = {
-//         killfield: {
-//             material: killfieldMaterial,
-//             indices: [1, 4, 7]
-//         },
-//         solid: {
-//             material: solidMaterial,
-//             indices: [2, 5, 3, 6]
-//         },
-//         empty: {
-//             material: emptyMaterial,
-//             indices: [0]
-//         }
-//     };
-//
-//     for (let i = 0; i < towerLevels; i++) {
-//         const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
-//         setMaterialsForPlatform(platformGroup, platformConfig);
-//         towerGroup.add(platformGroup);
-//         platforms.push(platformGroup);
-//     }
-//     collisionMeshGroup.rotation.y = towerRotation;
-// }
 
 /**
  * Generates the platform groups and collision meshes for the current level.
