@@ -65,6 +65,11 @@ let fireModel = null;
 const platformSections = 8;
 const radPerSection = (2 * Math.PI) / platformSections;
 const towerLevels = 5;
+const LEVEL_CONFIGS = {
+    1: { empty: 2, solid: 4, killfield: 2 },
+    2: { empty: 1, solid: 4, killfield: 3 },
+    3: { empty: 1, solid: 2, killfield: 5 }
+};
 
 //animation
 let GLOBAL_MIXERS = [];
@@ -573,27 +578,59 @@ function clearPlatforms() {
     collisionMeshGroup.children.length = 0;
 }
 
+// /**
+//  * Generates the platform groups and collision meshes for the current level.
+//  */
+// function generateLevel() {
+//     clearPlatforms();
+//     const platformConfig = {
+//         killfield: {
+//             material: killfieldMaterial,
+//             indices: [1, 4, 7]
+//         },
+//         solid: {
+//             material: solidMaterial,
+//             indices: [2, 5, 3, 6]
+//         },
+//         empty: {
+//             material: emptyMaterial,
+//             indices: [0]
+//         }
+//     };
+//
+//     for (let i = 0; i < towerLevels; i++) {
+//         const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
+//         setMaterialsForPlatform(platformGroup, platformConfig);
+//         towerGroup.add(platformGroup);
+//         platforms.push(platformGroup);
+//     }
+//     collisionMeshGroup.rotation.y = towerRotation;
+// }
+
 /**
  * Generates the platform groups and collision meshes for the current level.
  */
 function generateLevel() {
     clearPlatforms();
-    const platformConfig = {
-        killfield: {
-            material: killfieldMaterial,
-            indices: [1, 4, 7]
-        },
-        solid: {
-            material: solidMaterial,
-            indices: [2, 5, 3, 6]
-        },
-        empty: {
-            material: emptyMaterial,
-            indices: [0]
-        }
-    };
+
+    // What this function is doing is looping through the five levels, gets the indices which is 8 since 8 slices
+    // then randomizes using something called fisher yates shuffle
+    // then gets the current config for the game level then assigns the indices to the materials
+    // splice(0, config.empty) removes the first 2 items from indices and returns them
+    // then it creates the platform group and sets the materials for the platform group
 
     for (let i = 0; i < towerLevels; i++) {
+        const indices = [...Array(platformSections).keys()];
+        for (let j = indices.length - 1; j > 0; j--) {
+            const k = Math.floor(Math.random() * (j + 1));
+            [indices[j], indices[k]] = [indices[k], indices[j]];
+        }
+        const config = LEVEL_CONFIGS[currentLevel];
+        const platformConfig = {
+            empty: { material: emptyMaterial, indices: indices.splice(0, config.empty) },
+            solid: { material: solidMaterial, indices: indices.splice(0, config.solid) },
+            killfield: { material: killfieldMaterial, indices: indices.splice(0, config.killfield) }
+        };
         const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
         setMaterialsForPlatform(platformGroup, platformConfig);
         towerGroup.add(platformGroup);
