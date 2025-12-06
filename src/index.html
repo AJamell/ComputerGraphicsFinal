@@ -13,7 +13,39 @@
             font-family: Arial, sans-serif;
         }
 
-        /* New CSS for the Overlay */
+        #endGameOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #endGameBox {
+            background: #111;
+            padding: 80px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            width: 300px;
+        }
+
+        #endGameBox button {
+            margin-top: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: #fff;
+            color: #111;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
         #titleOverlay {
             position: absolute;
             top: 0;
@@ -28,7 +60,8 @@
             justify-content: center;
             z-index: 200;
             text-align: center;
-            transition: opacity 0.5s;
+            transition: opacity 0.5s, visibility 0.5s;
+            visibility: visible;
         }
 
         #titleOverlay h1 {
@@ -40,6 +73,8 @@
         #titleOverlay.hidden {
             opacity: 0;
             pointer-events: none;
+            transition: opacity 0.5s, visibility 0.5s;
+            visibility: hidden;
         }
 
         #levelButtons button.selected {
@@ -94,6 +129,16 @@
     </style>
 </head>
 <body>
+
+<div id="endGameOverlay">
+    <div id="endGameBox">
+        <h1>Game Over</h1>
+        <p id="finalScore">Score: 0</p>
+        <button id="playAgainButton">Play Again</button>
+        <button id="returnMenu">Return to Menu</button>
+    </div>
+</div>
+
 
 <div id="titleOverlay">
     <h1>HELIX JUMP</h1>

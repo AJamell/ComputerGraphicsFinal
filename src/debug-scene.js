@@ -5,7 +5,8 @@ import { levelThreeBackground, levelTwoBackground, levelOneBackground } from './
 import bossAudio from './sounds/boss_type_4.mp3'
 import landingSoundFile from './sounds/lava.flac' //sound from https://opengameart.org/content/lava-splash
 import fireEffect from './models/fire.glb';
-import splatEffect from './models/splat.png';
+import splatEffect from './models/splat-decal.png';
+import splatNormal from './models/splat-decal-normal.jpg';
 
 //platform setup
 const SHOW_AXES_HELPER = false;
@@ -30,7 +31,6 @@ let GLOBAL_RENDERER;
 
 
 //materials
-const ballLightBlueSplat = new THREE.MeshBasicMaterial({ color:0x27CFF5 });
 const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color:0x1F68AD});
 const killfieldMaterial = new THREE.MeshStandardMaterial({ color: 0xAD1F1F });
 const solidMaterial = new THREE.MeshStandardMaterial({ color: 0x1F32AD });
@@ -49,19 +49,22 @@ let soundEffectsEnabled = true; //to mute/unmute landing sound
 
 //ball
 const ballMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff0000,
+    color: 0xFFFF00, //yellow
     metalness: 0.3,
     roughness: 0.7
 });
 
+
 //fire + splat
 const loader = new THREE.TextureLoader();
 const splatTexture = loader.load(splatEffect);
+const splatNormalEffect = loader.load(splatNormal);
 let fireModel = null;
 
 //platforms
 const platformSections = 8;
 const radPerSection = (2 * Math.PI) / platformSections;
+const towerLevels = 5;
 
 //animation
 let GLOBAL_MIXERS = [];
@@ -107,8 +110,6 @@ leftRaycaster.ray.origin.set(0, 1, 1); // adjust position
 rightRaycaster.ray.direction.copy(downDirection);
 rightRaycaster.ray.origin.set(0, 1, -1); // adjust position
 
-
-
 const collisionMeshGroup = createPlatformGroup(platformGeometries, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }), 0);
 collisionMeshGroup.position.x = -7.5; //slightly above ground to avoid z-fighting
 collisionMeshGroup.visible = false; //hide collision meshes
@@ -130,31 +131,8 @@ function debugScene() {
         scene.add(platform);
     }
 
-    const platformConfig = {
-        killfield: {
-            material: killfieldMaterial,
-            indices: [1, 4, 7]
-        },
-        solid: {
-            material: solidMaterial,
-            indices: [2, 5, 3, 6]
-        },
-        empty: {
-            material: emptyMaterial,
-            indices: [0]
-        }
-    };
-
-    for (let i = 0; i < 5; i++) {
-        const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
-        setMaterialsForPlatform(platformGroup, platformConfig);
-        towerGroup.add(platformGroup);
-        platforms.push(platformGroup);
-    }
-
+    generateLevel()
     scene.add(collisionMeshGroup);
-
-
     towerGroup.rotation.y = towerRotation;
 
     camera.position.set(20, 2, 0);
@@ -164,14 +142,11 @@ function debugScene() {
 
     function animate() {
         requestAnimationFrame(animate);
-
         // convert from ms → seconds
         const deltaTime = clock.getDelta();
-
         if (isPlaying) {
             // tower rotation using deltaTime for consistent speed
             const rotationSpeed = 4.0; // radians per second
-
             if (input['a']) {
                 towerRotation += rotationSpeed * deltaTime;
                 towerRotation %= (2 * Math.PI);
@@ -186,30 +161,23 @@ function debugScene() {
                 towerGroup.rotation.y = towerRotation;
                 collisionMeshGroup.rotation.y = towerRotation;
             }
-
             currSectionIndex = Math.floor(towerRotation / radPerSection);
-
             if (clipAction) {
                 animationProgress = (
                     (clipAction.time % CLIP.duration) / CLIP.duration
                 ).toFixed(2);
             }
-
             if (animationProgress >= 0.97) {
                 processCollision();
             }
-
             // mixer now uses deltaTime passed in
             if (MIXER) MIXER.update(deltaTime);
             GLOBAL_MIXERS.forEach(m => m.update(deltaTime));
-
             updateScoreUI();
             renderer.shadowMap.enabled = true;
-
             document.getElementById("ballInformation").innerText =
                 `Animation Progress: ${animationProgress}`;
         }
-
         renderer.render(scene, GLOBAL_CAMERA);
     }
     animate();
@@ -218,7 +186,6 @@ function debugScene() {
 function processCollision() {
     const currentPlatform = platforms[towerYDisplacement / 12];
     if (!currentPlatform) return;
-
     const intersections = findPlatformCollision(currSectionIndex);
     const currSectionIsEmpty = currentPlatform.children[currSectionIndex].userData.materialName.toLowerCase() === "empty";
     let interactionType = "";
@@ -238,21 +205,16 @@ function processCollision() {
     switch (interactionType.toLowerCase()) {
     case "killfield":
         isPlaying = false;
-        clipAction.stop();
-        //TODO end game function call to reset state of game
-        document.getElementById("titleOverlay").classList.remove('hidden');
-        document.getElementById("playButton").style.display = 'block';
+        if (clipAction) clipAction.stop();
+        endGame(score);
         break;
     case "solid":
         fireModel.visible = false;
+        ballMaterial.color.set(0xFFFF00) //yellow
         clipAction.play();
-        //
-        // setTimeout(() => {
-        //     currentPlatform.children[interactionIndex].material = killfieldMaterial;
-        //     currentPlatform.children[interactionIndex].userData.materialName = "killfield";
-        // }, 100);
         break;
     case "empty":
+        score++;
         liftObject(towerGroup);
         break;
     }
@@ -261,11 +223,9 @@ function processCollision() {
 function findPlatformCollision(currentIndex) {
     // get meshes that arent current index from collision group
     const collisionMeshes = collisionMeshGroup.children.filter((_, index) => index !== currentIndex);
-
     // check left and right raycasters against these meshes
     const leftIntersections = leftRaycaster.intersectObjects(collisionMeshes, true);
     const rightIntersections = rightRaycaster.intersectObjects(collisionMeshes, true);
-
     return { left: leftIntersections.length, right: rightIntersections.length };
 }
 
@@ -382,13 +342,13 @@ function playLandingSound() {
  */
 function createSplat(position, scene) {
     const geometry = new THREE.PlaneGeometry(3, 3);
-    const ballColors = [ballLightBlueSplat.color, ballDarkBlueSplat.color]
-    const material = new THREE.MeshBasicMaterial({
+    const material = new THREE.MeshPhongMaterial({
         map: splatTexture,
+        normalMap:splatNormalEffect,
         transparent: true,
         depthWrite: false,
         side: THREE.DoubleSide,
-        color: ballColors[Math.floor(Math.random() * ballColors.length)],
+        color: ballDarkBlueSplat.color,
     });
     const splat = new THREE.Mesh(geometry, material);
     splat.position.set(position.x, 0.01, position.z);
@@ -461,7 +421,6 @@ function getBall(scene) {
                         const pos = model.position.clone();
                         createSplat(pos, scene);
                         playLandingSound();
-                        score++;
                     });
                 }
             });
@@ -503,7 +462,6 @@ function basicSetup() {
 function setupLights(scene) {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
-
     sun.position.set(10, 20, 10);
     sun.castShadow = true;
     sun.shadow.bias = -0.0005;
@@ -554,6 +512,123 @@ function generatePlatformGeometries(count) {
     return geometries;
 }
 
+let liftInProgress = false;
+
+// Callbacks you can set from outside
+let onLiftStart = () => {
+    fireModel.visible = true;
+    ballMaterial.color.set(0xff0000) //red
+    clipAction.stop();
+};
+let onLiftEnd = () => {processCollision();};
+
+
+/**
+ * Lifts an object 12 units upward with acceleration.
+ * @param {*} mesh Mesh to lift
+ * @return {Promise} resolves when lift is complete
+ */
+function liftObject(mesh) {
+    if (liftInProgress) return Promise.resolve();
+    liftInProgress = true;
+    onLiftStart();
+    let velocity = 30;
+    const startY = mesh.position.y;
+    const targetY = startY + 12;
+    towerYDisplacement += 12;
+    let lastTime = performance.now();
+    const gameWon = score === towerLevels;
+    return new Promise(resolve => {
+        function animate() {
+            const now = performance.now();
+            const delta = (now - lastTime) / 1000;
+            lastTime = now;
+            mesh.position.y += velocity * delta;
+            if (mesh.position.y >= targetY) {
+                mesh.position.y = targetY;
+                liftInProgress = false;
+                if (gameWon) {
+                    endGame(score);
+                    resolve();
+                    return;
+                }
+                onLiftEnd();
+                resolve();
+                return;
+            }
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+    });
+}
+
+/**
+ * Clears all existing platform sections from the scene.
+ */
+function clearPlatforms() {
+    platforms.forEach(platformGroup => {
+        towerGroup.remove(platformGroup);
+    });
+    platforms.length = 0;
+    collisionMeshGroup.children.length = 0;
+}
+
+/**
+ * Generates the platform groups and collision meshes for the current level.
+ */
+function generateLevel() {
+    clearPlatforms();
+    const platformConfig = {
+        killfield: {
+            material: killfieldMaterial,
+            indices: [1, 4, 7]
+        },
+        solid: {
+            material: solidMaterial,
+            indices: [2, 5, 3, 6]
+        },
+        empty: {
+            material: emptyMaterial,
+            indices: [0]
+        }
+    };
+
+    for (let i = 0; i < towerLevels; i++) {
+        const platformGroup = createPlatformGroup(platformGeometries, platformMaterial, i * -12);
+        setMaterialsForPlatform(platformGroup, platformConfig);
+        towerGroup.add(platformGroup);
+        platforms.push(platformGroup);
+    }
+    collisionMeshGroup.rotation.y = towerRotation;
+}
+
+
+function resetGame() {
+    score = 0;
+    isPlaying = false;
+    towerYDisplacement = 0;
+    liftInProgress = false;
+    ballMaterial.color.set(0xFFFF00)
+
+    towerRotation = Math.PI / platformSections;
+    towerGroup.rotation.y = towerRotation;
+    collisionMeshGroup.rotation.y = towerRotation;
+    towerGroup.position.y = 0;
+
+    if (clipAction) {
+        clipAction.stop();
+        clipAction.time = 0.5;
+    }
+    if (fireModel) {
+        fireModel.visible = false;
+    }
+    if (backgroundSound.isPlaying) {
+        backgroundSound.stop();
+    }
+    musicStarted = false;
+    updateScoreUI();
+    document.getElementById("ballInformation").innerText = `Animation Progress: N/A`;
+}
 
 /**
  * Updates the score display in the UI.
@@ -561,6 +636,16 @@ function generatePlatformGeometries(count) {
 function updateScoreUI() {
     const userScore = document.getElementById("score");
     if (userScore) userScore.innerText = `Score: ${score}`;
+}
+
+/**
+ * Diplays the end game overlay with the final score.
+ * */
+function endGame(points) {
+    isPlaying = false;
+    if (clipAction) clipAction.stop();
+    document.getElementById("endGameOverlay").style.display = "flex";
+    document.getElementById("finalScore").textContent = "Score: " + points;
 }
 
 
@@ -622,20 +707,45 @@ function applyLevelSetup(level) {
 
 //GUI
 window.addEventListener("DOMContentLoaded", () => {
-
     document.getElementById("playButton").addEventListener("click", () => {
         if (!isPlaying) {
+            resetGame();
             applyLevelSetup(currentLevel);
+            generateLevel();
             isPlaying = true;
-
+            if (clipAction) {
+                clipAction.play();
+            }
             if (!musicStarted) {
                 backgroundSound.play();
                 musicStarted = true;
             }
             document.getElementById("titleOverlay").classList.add('hidden');
-            document.getElementById("playButton").style.display = 'none';
         }
     })
+
+    document.getElementById("returnMenu").addEventListener("click", () => {
+        document.getElementById("endGameOverlay").style.display = "none";
+        document.getElementById("titleOverlay").classList.remove('hidden');
+        document.getElementById("playButton").style.display = 'block';
+        resetGame();
+        clearPlatforms();
+    });
+
+    document.getElementById("playAgainButton").addEventListener("click", () => {
+        document.getElementById("endGameOverlay").style.display = "none";
+        resetGame();
+        generateLevel();
+        applyLevelSetup(currentLevel);
+        isPlaying = true;
+        if (clipAction) {
+            clipAction.play();
+        }
+        if (!musicStarted) {
+            backgroundSound.play();
+            musicStarted = true;
+        }
+    });
 
     document.getElementById("reset").addEventListener("click", () => {
         window.location.reload();
@@ -647,10 +757,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("LevelTwo").addEventListener("click", () => {
         selectLevel(2);
+
     });
 
     document.getElementById("LevelThree").addEventListener("click", () => {
         selectLevel(3);
+
     });
 
     //background music
@@ -677,56 +789,5 @@ window.addEventListener("DOMContentLoaded", () => {
     selectLevel(currentLevel);
 })
 
-let liftInProgress = false;
-
-// Callbacks you can set from outside
-let onLiftStart = () => {
-    fireModel.visible = true;
-    clipAction.stop();
-};
-let onLiftEnd = () => {processCollision();};
-
-
-/**
- * Lifts an object 12 units upward with acceleration.
- * @param {*} mesh Mesh to lift
- * @return {Promise} resolves when lift is complete
- */
-function liftObject(mesh) {
-    if (liftInProgress) return Promise.resolve();
-
-    liftInProgress = true;
-    onLiftStart();
-
-    let velocity = 30;
-    const startY = mesh.position.y;
-    const targetY = startY + 12;
-    towerYDisplacement += 12;
-
-    let lastTime = performance.now();
-
-    return new Promise(resolve => {
-        function animate() {
-            const now = performance.now();
-            const delta = (now - lastTime) / 1000;
-            lastTime = now;
-            mesh.position.y += velocity * delta;
-
-            if (mesh.position.y >= targetY) {
-                mesh.position.y = targetY;
-
-                liftInProgress = false;
-                onLiftEnd();
-
-                resolve();
-                return;
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        requestAnimationFrame(animate);
-    });
-}
 
 export { debugScene };
