@@ -704,8 +704,8 @@ function applyLevelSetup(level) {
 
     } else if (level === 2) {
         GLOBAL_CAMERA = perspectiveCamera;
-        const targetPoint = new THREE.Vector3(-7.5, 10, 0); // Tower position
-        GLOBAL_CAMERA.position.set(30, 50, -20);
+        const targetPoint = new THREE.Vector3(0, 10, 0); // Tower position
+        GLOBAL_CAMERA.position.set(20, 15, 20);   
         GLOBAL_CAMERA.lookAt(targetPoint);
         GLOBAL_CAMERA.updateProjectionMatrix();
         background.levelTwoBackground(GLOBAL_SCENE,GLOBAL_RENDERER);
@@ -714,8 +714,8 @@ function applyLevelSetup(level) {
 
     } else if (level === 3) {
         GLOBAL_CAMERA = perspectiveCamera;
-        const targetPoint = new THREE.Vector3(0, 30, -30);
-        GLOBAL_CAMERA.position.set(10, 50, 55);
+        const targetPoint = new THREE.Vector3(0, 10, 0);
+        GLOBAL_CAMERA.position.set(20, 15, 20);
         GLOBAL_CAMERA.lookAt(targetPoint);
         GLOBAL_CAMERA.updateProjectionMatrix();
         background.levelThreeBackground(GLOBAL_SCENE,GLOBAL_RENDERER);
