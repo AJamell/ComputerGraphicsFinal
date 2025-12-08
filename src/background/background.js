@@ -38,6 +38,7 @@ export function levelOneBackground(scene, renderer) {
         (gltf) => {
             const model = gltf.scene;
             model.scale.set(0.01, 0.01, 0.01);
+            model.rotation.y = Math.PI;
             model.position.set(0, -40, -55);
             model.castShadow = true;
             model.receiveShadow = true;
@@ -60,7 +61,9 @@ export function levelTwoBackground(scene, renderer) {
         (gltf) => {
             const model = gltf.scene;
             model.scale.set(30, 30, 30);
+            //model.position.set(0, -35, 200);
             model.position.set(0, -35, 200);
+            //model.rotation.y = 0.5;
             model.castShadow = true;
             model.receiveShadow = true;
             scene.add(model);
@@ -82,7 +85,7 @@ export function levelThreeBackground(scene,renderer) {
         (gltf) => {
             const model = gltf.scene;
             model.scale.set(2, 2, 2);
-            model.position.set(0, -108, -30);
+            model.position.set(-10, -108, -55);
             model.castShadow = true;
             model.receiveShadow = true;
             scene.add(model);
