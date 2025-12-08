@@ -7,6 +7,8 @@ import landingSoundFile from './sounds/lava.flac' //sound from https://opengamea
 import fireEffect from './models/fire.glb';
 import splatEffect from './models/splat-decal.png';
 import splatNormal from './models/splat-decal-normal.jpg';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js';
 
 //platform setup
 const SHOW_AXES_HELPER = false;
@@ -30,7 +32,7 @@ let GLOBAL_CAMERA;
 let GLOBAL_RENDERER;
 
 //materials
-const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color: 0x1F68AD });
+const ballDarkBlueSplat = new THREE.MeshBasicMaterial({ color: 0xFFC0CB});
 const killfieldMaterial = new THREE.MeshStandardMaterial({ color: 0xAD1F1F });
 const solidMaterial = new THREE.MeshStandardMaterial({ color: 0x1F32AD });
 const emptyMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
@@ -125,6 +127,9 @@ collisionMeshGroup.rotation.y = towerRotation;
  */
 function debugScene() {
     const { scene, perspectiveCamera: camera, renderer } = basicSetup();
+    const composer = new EffectComposer(renderer);
+    const renderPixelatedPass = new RenderPixelatedPass(1.5, scene, perspectiveCamera);
+    composer.addPass(renderPixelatedPass);
     setupLights(scene);
     if (SHOW_AXES_HELPER) {
         const axesHelper = new THREE.AxesHelper(10);
@@ -182,7 +187,7 @@ function debugScene() {
             document.getElementById("ballInformation").innerText =
                 `Animation Progress: ${animationProgress}`;
         }
-        renderer.render(scene, GLOBAL_CAMERA);
+        composer.render();
     }
     animate();
 }
@@ -476,7 +481,7 @@ function basicSetup() {
  * @param {*} scene the scene to add lights to
  */
 function setupLights(scene) {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
     scene.add(ambientLight);
     sun.position.set(10, 20, 10);
     sun.castShadow = true;
