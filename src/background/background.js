@@ -12,6 +12,14 @@ draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
 loader.setDRACOLoader(draco);
 let currentBackgroundModel = null;
 
+//scale
+const levelOneModelScale = 0.01;
+const levelOnePosition = new THREE.Vector3(0,-40,-55);
+const levelTwoScale = 30;
+const levelTwoPosition = new THREE.Vector3(0,-35,200);
+const levelThreeModelScale = 2;
+const levelThreePosition = new THREE.Vector3(-10,-108,-55);
+
 function removeCurrentModel(scene) {
     if (!currentBackgroundModel) return;
     scene.remove(currentBackgroundModel);
@@ -28,6 +36,7 @@ function removeCurrentModel(scene) {
     currentBackgroundModel = null;
 }
 
+
 export function levelOneBackground(scene, renderer) {
     removeCurrentModel(scene);
     scene.background = new THREE.Color("#87CEFA");
@@ -37,9 +46,9 @@ export function levelOneBackground(scene, renderer) {
         marioKartDKMap,
         (gltf) => {
             const model = gltf.scene;
-            model.scale.set(0.01, 0.01, 0.01);
+            model.scale.set(levelOneModelScale, levelOneModelScale,levelOneModelScale);
             model.rotation.y = Math.PI;
-            model.position.set(0, -40, -55);
+            model.position.set(levelOnePosition.x, levelOnePosition.y, levelOnePosition.z);
             model.castShadow = true;
             model.receiveShadow = true;
             scene.add(model);
@@ -49,6 +58,7 @@ export function levelOneBackground(scene, renderer) {
         (err) => console.error("GLB Load Error:", err)
     );
 }
+
 
 export function levelTwoBackground(scene, renderer) {
     removeCurrentModel(scene);
@@ -60,10 +70,8 @@ export function levelTwoBackground(scene, renderer) {
         marioAirport,
         (gltf) => {
             const model = gltf.scene;
-            model.scale.set(30, 30, 30);
-            //model.position.set(0, -35, 200);
-            model.position.set(0, -35, 200);
-            //model.rotation.y = 0.5;
+            model.scale.set(levelTwoScale,levelTwoScale,levelTwoScale);
+            model.position.set(levelTwoPosition.x, levelTwoPosition.y, levelTwoPosition.z);
             model.castShadow = true;
             model.receiveShadow = true;
             scene.add(model);
@@ -73,6 +81,7 @@ export function levelTwoBackground(scene, renderer) {
         (err) => console.error("GLB Load Error:", err)
     );
 }
+
 
 export function levelThreeBackground(scene,renderer) {
     removeCurrentModel(scene);
@@ -84,8 +93,8 @@ export function levelThreeBackground(scene,renderer) {
         bowserMap,
         (gltf) => {
             const model = gltf.scene;
-            model.scale.set(2, 2, 2);
-            model.position.set(-10, -108, -55);
+            model.scale.set(levelThreeModelScale, levelThreeModelScale, levelThreeModelScale);
+            model.position.set(levelThreePosition.x, levelThreePosition.y, levelThreePosition.z);
             model.castShadow = true;
             model.receiveShadow = true;
             scene.add(model);

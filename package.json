@@ -1,7 +1,7 @@
 {
-  "name": "final-project",
+  "name": "helix-jump",
   "version": "1.0.0",
-  "main": "src/final-project.js",
+  "main": "src/helix-jump.js",
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",
